@@ -46,7 +46,6 @@
     margin-top: 18px;
   }
   button:disabled { background: #a0aec0; cursor: not-allowed; }
-  button.secondary { background: #718096; margin-top: 8px; }
   .alert {
     padding: 12px;
     border-radius: 6px;
@@ -58,40 +57,16 @@
   .error { background: #fed7d7; color: #9b2c2c; }
   .success { background: #c6f6d5; color: #22543d; }
   .hidden { display: none !important; }
-  .userbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 13px;
-    color: #4a5568;
-  }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div class="card" id="loginSection">
+<div class="card" id="entrySection">
   <h2>NGAPORI RANCH</h2>
-  <p class="sub">Ranch Asset & Maintenance OS (RAMS)</p>
+  <p class="sub">Field Report</p>
 
-  <label for="username">Username</label>
-  <input type="text" id="username" autocomplete="username" autocapitalize="none">
-
-  <label for="pin">PIN</label>
-  <input type="password" id="pin" inputmode="numeric" autocomplete="current-password">
-
-  <button id="loginBtn" onclick="login()">Log In</button>
-  <div id="loginError" class="alert error hidden"></div>
-</div>
-
-<!-- DATA ENTRY -->
-<div class="card hidden" id="entrySection">
-  <div class="userbar">
-    <span id="whoami"></span>
-    <a href="#" onclick="logout(); return false;">Log out</a>
-  </div>
-  <h2>Field Report</h2>
+  <label for="reportedBy">Your Name</label>
+  <input type="text" id="reportedBy" placeholder="e.g. J. Doe">
 
   <label for="assetId">Asset ID</label>
   <input type="text" id="assetId" placeholder="e.g. TR-014">
@@ -118,75 +93,23 @@
 </div>
 
 <script>
-  var activeUser = null;
-
-  // ---------- AUTH ----------
-  function login() {
-    var u = document.getElementById('username').value.trim();
-    var p = document.getElementById('pin').value.trim();
-    var btn = document.getElementById('loginBtn');
-    var errEl = document.getElementById('loginError');
-
-    if (!u || !p) {
-      errEl.innerText = 'Enter both username and PIN.';
-      errEl.classList.remove('hidden');
-      return;
-    }
-
-    errEl.classList.add('hidden');
-    btn.disabled = true;
-    btn.innerText = 'Logging in...';
-
-    google.script.run
-      .withSuccessHandler(function (user) {
-        btn.disabled = false;
-        btn.innerText = 'Log In';
-        if (!user) {
-          errEl.innerText = 'Invalid username or PIN.';
-          errEl.classList.remove('hidden');
-          return;
-        }
-        activeUser = user;
-        document.getElementById('whoami').innerText = user.name + ' (' + user.role + ')';
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('entrySection').classList.remove('hidden');
-      })
-      .withFailureHandler(function (err) {
-        btn.disabled = false;
-        btn.innerText = 'Log In';
-        errEl.innerText = 'Server error: ' + (err && err.message ? err.message : err);
-        errEl.classList.remove('hidden');
-      })
-      .authenticateUser(u, p);
-  }
-
-  function logout() {
-    activeUser = null;
-    document.getElementById('username').value = '';
-    document.getElementById('pin').value = '';
-    document.getElementById('entrySection').classList.add('hidden');
-    document.getElementById('loginSection').classList.remove('hidden');
-  }
-
-  // ---------- DATA ENTRY ----------
   function submitReport() {
-    if (!activeUser) { logout(); return; }
-
+    var reportedBy = document.getElementById('reportedBy').value.trim();
     var assetId = document.getElementById('assetId').value.trim();
     var description = document.getElementById('description').value.trim();
     var msgEl = document.getElementById('entryMsg');
     var btn = document.getElementById('submitBtn');
 
-    if (!assetId || !description) {
+    if (!reportedBy || !assetId || !description) {
       msgEl.className = 'alert error';
-      msgEl.innerText = 'Asset ID and Description are required.';
+      msgEl.innerText = 'Name, Asset ID, and Description are required.';
       msgEl.classList.remove('hidden');
       return;
     }
 
     var payload = {
-      username: activeUser.username,
-      role: activeUser.role,
+      username: reportedBy,
+      role: "Field Entry",
       assetId: assetId,
       workType: document.getElementById('workType').value,
       description: description,
