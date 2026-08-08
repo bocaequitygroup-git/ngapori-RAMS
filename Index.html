@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; background: #eef2f5; color: #2d3748; }
+  .card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 460px; margin: 0 auto 16px; }
+  .card.wide { max-width: 1000px; }
+  h2 { margin-top: 0; color: #1a365d; font-size: 20px; }
+  h3 { color: #1a365d; font-size: 15px; margin: 18px 0 8px; }
+  label { font-weight: 600; margin-top: 12px; display: block; font-size: 13px; color: #4a5568; }
+  input, select, textarea { width: 100%; padding: 11px; margin-top: 4px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 15px; font-family: inherit; }
+  textarea { resize: vertical; }
+  button { background: #2b6cb0; color: #fff; border: none; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
+  button.block { width: 100%; margin-top: 16px; }
+  button:disabled { background: #a0aec0; cursor: not-allowed; }
+  button.secondary { background: #718096; }
+  button.danger { background: #c53030; }
+  button.small { padding: 6px 10px; font-size: 12px; margin: 2px; }
+  .hidden { display: none !important; }
+  .alert { padding: 12px; border-radius: 6px; text-align: center; margin-top: 12px; font-weight: bold; font-size: 14px; }
+  .error { background: #fed7d7; color: #9b2c2c; }
+  .success { background: #c6f6d5; color: #22543d; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .badge { background: #ebf8ff; color: #2b6cb0; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; margin: 14px 0; }
+  .kpi { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
+  .kpi .num { font-size: 24px; font-weight: bold; color: #1a365d; }
+  .kpi.alert .num { color: #c53030; }
+  .kpi .lbl { font-size: 11px; color: #718096; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+  th { background: #f7fafc; color: #4a5568; font-size: 11px; text-transform: uppercase; }
+  .table-wrap { overflow-x: auto; }
+  .pill { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+  .pill.Open { background: #fed7d7; color: #9b2c2c; }
+  .pill.Pending { background: #feebc8; color: #9c4221; }
+  .pill.Completed { background: #c6f6d5; color: #22543d; }
+  #scannerBox { margin-top: 10px; }
+  .readonly { background: #f7fafc; color: #4a5568; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="card" id="loginSection">
+  <h2>NGAPORI RANCH ENTERPRISE</h2>
+  <p style="margin-top:-8px;color:#718096;font-size:13px;">Ranch Asset &amp; Maintenance OS (RAMS)</p>
+  <label>Username</label>
+  <input type="text" id="username" placeholder="e.g. worker1" autocapitalize="off">
+  <label>PIN / Password</label>
+  <input type="password" id="pin" placeholder="****">
+  <button class="block" id="loginBtn" onclick="login()">Log In</button>
+  <div id="loginError" class="alert error hidden">Invalid username or PIN.</div>
+</div>
+
+<!-- ============ WORKER VIEW ============ -->
+<div class="card hidden" id="workerSection">
+  <div class="topbar">
+    <strong>RAMS Field Portal</strong>
+    <span class="badge" id="workerBadge"></span>
+  </div>
+  <button class="secondary small" onclick="logout()">Log out</button>
+
+  <h3>Scan or Select Asset</h3>
+  <button class="block" id="scanBtn" onclick="toggleScanner()">Scan Asset QR Code</button>
+  <div id="scannerBox" class="hidden"></div>
+
+  <label>Or Select Asset</label>
+  <select id="assetSelect" onchange="onAssetPicked()">
+    <option value="">-- choose an asset --</option>
+  </select>
+
+  <div id="assetInfo" class="hidden" style="margin-top:10px;">
+    <label>Asset Name</label>
+    <input type="text" id="assetName" class="readonly" readonly>
+    <label>Location</label>
+    <input type="text" id="assetLocation" class="readonly" readonly>
+  </div>
+
+  <h3>Report</h3>
+  <label>Report Type</label>
+  <select id="workType">
+    <option value="Damage">Broken / Out of Order</option>
+    <option value="Service">Needs Routine Service</option>
+    <option value="Inspection">Routine Inspection Completed</option>
+  </select>
+
+  <label>Issue Notes / Action Taken</label>
+  <textarea id="description" rows="4" placeholder="Describe issue or work performed..."></textarea>
+  <button class="secondary small" style="margin-top:6px;" onclick="startVoice()">Tap for Voice-to-Text</button>
+
+  <div class="row2">
+    <div>
+      <label>Parts Used (optional)</label>
+      <input type="text" id="partsUsed" placeholder="e.g. 2&quot; O-Ring">
+    </div>
+    <div>
+      <label>Quantity</label>
+      <input type="number" id="partsQty" min="0">
+    </div>
+  </div>
+
+  <button class="block" id="submitBtn" onclick="submitReport()">Submit Field Report</button>
+  <div id="workerMsg" class="alert hidden"></div>
+</div>
+
+<!-- ============ MANAGER VIEW ============ -->
+<div class="card wide hidden" id="managerSection">
+  <div class="topbar">
+    <strong>RAMS Manager Workstation</strong>
+    <span class="badge" id="managerBadge"></span>
+  </div>
+  <button class="secondary small" onclick="logout()">Log out</button>
+  <button class="secondary small" onclick="loadManagerDashboard()">Refresh</button>
+
+  <h3>Open Maintenance Tickets</h3>
+  <div class="table-wrap">
+    <table id="ticketsTable">
+      <thead><tr><th>Log ID</th><th>Date</th><th>Asset</th><th>Reported By</th><th>Issue</th><th>Status</th><th>Assigned</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h3>Low Parts Alerts</h3>
+  <div class="table-wrap">
+    <table id="partsTable">
+      <thead><tr><th>Part</th><th>On Hand</th><th>Minimum</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h3>Asset Override &amp; Management</h3>
+  <label>Select Asset</label>
+  <select id="overrideAssetSelect" onchange="onOverrideAssetPicked()">
+    <option value="">-- choose an asset --</option>
+  </select>
+  <div class="row2">
+    <div>
+      <label>Set Status</label>
+      <select id="overrideStatus">
+        <option value="Operational">Operational</option>
+        <option value="Needs Service">Needs Service</option>
+        <option value="Out of Order">Out of Order</option>
+      </select>
+    </div>
+    <div>
+      <label>Update Last Service Date</label>
+      <input type="date" id="overrideDate">
+    </div>
+  </div>
+  <label>Manager Sign-off Notes</label>
+  <textarea id="overrideNotes" rows="2"></textarea>
+  <button class="block" id="overrideBtn" onclick="saveOverride()">Save Changes &amp; Stamp</button>
+  <div id="managerMsg" class="alert hidden"></div>
+</div>
+
+<!-- ============ FOUNDER VIEW ============ -->
+<div class="card wide hidden" id="founderSection">
+  <div class="topbar">
+    <strong>NGAPORI EXECUTIVE CONTROL</strong>
+    <span class="badge" id="founderBadge"></span>
+  </div>
+  <button class="secondary small" onclick="logout()">Log out</button>
+  <button class="secondary small" onclick="loadFounderDashboard()">Refresh</button>
+
+  <h3>System Health KPIs</h3>
+  <div class="kpis" id="kpiGrid"></div>
+
+  <h3>Critical Incidents &amp; Unresolved Failures</h3>
+  <div class="table-wrap">
+    <table id="incidentsTable">
+      <thead><tr><th>Asset ID</th><th>Name</th><th>Location</th><th>Since</th><th>Assigned To</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h3>User Accountability Trail (Last 24 Hours)</h3>
+  <div class="table-wrap">
+    <table id="auditTable">
+      <thead><tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  var activeUser = null;
+  var initialAssetId = "<?!= initialAssetId ?>";
+  var html5QrCode = null;
+
+  // ---------- AUTH ----------
+  function login() {
+    var u = document.getElementById('username').value;
+    var p = document.getElementById('pin').value;
+    document.getElementById('loginBtn').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (user) {
+        document.getElementById('loginBtn').disabled = false;
+        if (!user) {
+          document.getElementById('loginError').classList.remove('hidden');
+          return;
+        }
+        activeUser = user;
+        document.getElementById('loginSection').classList.add('hidden');
+        routeToRole();
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('loginBtn').disabled = false;
+        document.getElementById('loginError').innerText = 'Error: ' + err.message;
+        document.getElementById('loginError').classList.remove('hidden');
+      })
+      .authenticateUser(u, p);
+  }
+
+  function logout() {
+    activeUser = null;
+    ['workerSection','managerSection','founderSection'].forEach(function(id){
+      document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById('loginSection').classList.remove('hidden');
+    document.getElementById('username').value = '';
+    document.getElementById('pin').value = '';
+    document.getElementById('loginError').classList.add('hidden');
+  }
+
+  function routeToRole() {
+    if (activeUser.role === 'Ranch Worker') {
+      document.getElementById('workerSection').classList.remove('hidden');
+      document.getElementById('workerBadge').innerText = activeUser.name + ' (Worker)';
+      loadWorkerAssets();
+    } else if (activeUser.role === 'Ranch Manager') {
+      document.getElementById('managerSection').classList.remove('hidden');
+      document.getElementById('managerBadge').innerText = activeUser.name + ' (Manager)';
+      loadManagerDashboard();
+    } else {
+      document.getElementById('founderSection').classList.remove('hidden');
+      document.getElementById('founderBadge').innerText = activeUser.name + ' (Founder)';
+      loadFounderDashboard();
+    }
+  }
+
+  // ---------- WORKER ----------
+  function loadWorkerAssets() {
+    google.script.run.withSuccessHandler(function (assets) {
+      var sel = document.getElementById('assetSelect');
+      sel.innerHTML = '<option value="">-- choose an asset --</option>';
+      assets.forEach(function (a) {
+        var opt = document.createElement('option');
+        opt.value = a.id;
+        opt.text = a.id + ' — ' + a.name;
+        sel.appendChild(opt);
+      });
+      if (initialAssetId) {
+        sel.value = initialAssetId;
+        onAssetPicked();
+      }
+    }).getAssetList();
+  }
+
+  function onAssetPicked() {
+    var id = document.getElementById('assetSelect').value;
+    if (!id) { document.getElementById('assetInfo').classList.add('hidden'); return; }
+    google.script.run.withSuccessHandler(function (asset) {
+      if (!asset) return;
+      document.getElementById('assetName').value = asset.name;
+      document.getElementById('assetLocation').value = asset.location;
+      document.getElementById('assetInfo').classList.remove('hidden');
+    }).getAssetById(id);
+  }
+
+  function toggleScanner() {
+    var box = document.getElementById('scannerBox');
+    if (!box.classList.contains('hidden')) {
+      box.classList.add('hidden');
+      if (html5QrCode) { html5QrCode.stop().catch(function(){}); }
+      return;
+    }
+    box.classList.remove('hidden');
+    box.innerHTML = '<div id="qrReader" style="width:100%;"></div>';
+    if (typeof Html5Qrcode === 'undefined') {
+      box.innerHTML = '<div class="alert error">Camera scanner unavailable. Use the dropdown below instead.</div>';
+      return;
+    }
+    html5QrCode = new Html5Qrcode("qrReader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      function (decodedText) {
+        try {
+          var url = new URL(decodedText);
+          var id = url.searchParams.get('asset_id') || decodedText;
+          document.getElementById('assetSelect').value = id;
+          onAssetPicked();
+        } catch (e) {
+          document.getElementById('assetSelect').value = decodedText;
+          onAssetPicked();
+        }
+        html5QrCode.stop().catch(function(){});
+        box.classList.add('hidden');
+      },
+      function () { /* ignore per-frame scan errors */ }
+    ).catch(function () {
+      box.innerHTML = '<div class="alert error">Camera access denied or unavailable.</div>';
+    });
+  }
+
+  function startVoice() {
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) { alert('Voice input is not supported in this browser.'); return; }
+    var rec = new Recognition();
+    rec.lang = 'en-US';
+    rec.onresult = function (e) {
+      var text = e.results[0][0].transcript;
+      var box = document.getElementById('description');
+      box.value = (box.value ? box.value + ' ' : '') + text;
+    };
+    rec.start();
+  }
+
+  function submitReport() {
+    var assetId = document.getElementById('assetSelect').value;
+    if (!assetId) { alert('Please select or scan an asset first.'); return; }
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = 'Submitting...';
+    var payload = {
+      username: activeUser.name,
+      role: activeUser.role,
+      assetId: assetId,
+      workType: document.getElementById('workType').value,
+      description: document.getElementById('description').value,
+      partsUsed: document.getElementById('partsUsed').value,
+      quantity: document.getElementById('partsQty').value
+    };
+    google.script.run
+      .withSuccessHandler(function () {
+        var msg = document.getElementById('workerMsg');
+        msg.className = 'alert success';
+        msg.innerText = 'Report signed & logged to RAMS!';
+        msg.classList.remove('hidden');
+        document.getElementById('description').value = '';
+        document.getElementById('partsUsed').value = '';
+        document.getElementById('partsQty').value = '';
+        btn.disabled = false;
+        btn.innerText = 'Submit Field Report';
+        setTimeout(function () { msg.classList.add('hidden'); }, 4000);
+      })
+      .withFailureHandler(function (err) {
+        var msg = document.getElementById('workerMsg');
+        msg.className = 'alert error';
+        msg.innerText = 'Error: ' + err.message;
+        msg.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerText = 'Submit Field Report';
+      })
+      .processSignedFieldReport(payload);
+  }
+
+  // ---------- MANAGER ----------
+  function loadManagerDashboard() {
+    google.script.run.withSuccessHandler(renderTickets).getOpenTickets();
+    google.script.run.withSuccessHandler(renderLowParts).getLowParts();
+    google.script.run.withSuccessHandler(function (assets) {
+      var sel = document.getElementById('overrideAssetSelect');
+      sel.innerHTML = '<option value="">-- choose an asset --</option>';
+      assets.forEach(function (a) {
+        var opt = document.createElement('option');
+        opt.value = a.id; opt.text = a.id + ' — ' + a.name;
+        sel.appendChild(opt);
+      });
+    }).getAssetList();
+  }
+
+  function renderTickets(tickets) {
+    var tbody = document.querySelector('#ticketsTable tbody');
+    tbody.innerHTML = '';
+    tickets.forEach(function (t) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + t.logId + '</td>' +
+        '<td>' + t.timestamp + '</td>' +
+        '<td>' + t.assetId + '</td>' +
+        '<td>' + (t.reportedBy || '') + '</td>' +
+        '<td>' + t.description + '</td>' +
+        '<td><span class="pill ' + t.status + '">' + t.status + '</span></td>' +
+        '<td>' + (t.assignedTo || '—') + '</td>' +
+        '<td></td>';
+      var actionTd = tr.lastChild;
+      var assignBtn = document.createElement('button');
+      assignBtn.className = 'small secondary';
+      assignBtn.innerText = 'Assign to me';
+      assignBtn.onclick = function () { assignTicketUI(t.logId); };
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'small';
+      closeBtn.innerText = 'Close';
+      closeBtn.onclick = function () { closeTicketUI(t.logId); };
+      actionTd.appendChild(assignBtn);
+      actionTd.appendChild(closeBtn);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderLowParts(parts) {
+    var tbody = document.querySelector('#partsTable tbody');
+    tbody.innerHTML = '';
+    if (!parts.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:#718096;">No low-stock parts.</td></tr>';
+      return;
+    }
+    parts.forEach(function (p) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + p.name + '</td><td>' + p.onHand + '</td><td>' + p.minimum + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function assignTicketUI(logId) {
+    google.script.run.withSuccessHandler(function () { loadManagerDashboard(); })
+      .withFailureHandler(function (err) { alert('Error: ' + err.message); })
+      .assignTicket(logId, activeUser.name);
+  }
+
+  function closeTicketUI(logId) {
+    var cost = prompt('Actual cost for ' + logId + ' (USD, optional):', '0');
+    if (cost === null) return;
+    google.script.run.withSuccessHandler(function () { loadManagerDashboard(); })
+      .withFailureHandler(function (err) { alert('Error: ' + err.message); })
+      .closeTicket({ logId: logId, managerName: activeUser.name, costUsd: cost, notes: '' });
+  }
+
+  function onOverrideAssetPicked() {
+    var id = document.getElementById('overrideAssetSelect').value;
+    if (!id) return;
+    google.script.run.withSuccessHandler(function (asset) {
+      if (asset) document.getElementById('overrideStatus').value = asset.status || 'Operational';
+    }).getAssetById(id);
+  }
+
+  function saveOverride() {
+    var assetId = document.getElementById('overrideAssetSelect').value;
+    if (!assetId) { alert('Choose an asset first.'); return; }
+    var btn = document.getElementById('overrideBtn');
+    btn.disabled = true;
+    var payload = {
+      assetId: assetId,
+      status: document.getElementById('overrideStatus').value,
+      lastServiceDate: document.getElementById('overrideDate').value,
+      notes: document.getElementById('overrideNotes').value,
+      managerName: activeUser.name
+    };
+    google.script.run
+      .withSuccessHandler(function () {
+        var msg = document.getElementById('managerMsg');
+        msg.className = 'alert success';
+        msg.innerText = 'Asset updated & stamped.';
+        msg.classList.remove('hidden');
+        btn.disabled = false;
+        setTimeout(function () { msg.classList.add('hidden'); }, 4000);
+        loadManagerDashboard();
+      })
+      .withFailureHandler(function (err) {
+        var msg = document.getElementById('managerMsg');
+        msg.className = 'alert error';
+        msg.innerText = 'Error: ' + err.message;
+        msg.classList.remove('hidden');
+        btn.disabled = false;
+      })
+      .updateAssetStatus(payload);
+  }
+
+  // ---------- FOUNDER ----------
+  function loadFounderDashboard() {
+    google.script.run.withSuccessHandler(renderKpis).getKPIs();
+    google.script.run.withSuccessHandler(renderIncidents).getCriticalIncidents();
+    google.script.run.withSuccessHandler(renderAudit).getAuditTrail(24);
+  }
+
+  function renderKpis(k) {
+    var grid = document.getElementById('kpiGrid');
+    grid.innerHTML =
+      kpiCell(k.operational, 'Operational', false) +
+      kpiCell(k.needsService, 'Needs Service', false) +
+      kpiCell(k.outOfOrder, 'Out of Order', true) +
+      kpiCell(k.overdueService, 'Overdue Service', true) +
+      kpiCell(k.lowPartsAlerts, 'Low Parts', true) +
+      kpiCell('$' + Number(k.totalCapex || 0).toLocaleString(), 'Total CAPEX', false);
+  }
+  function kpiCell(num, label, alert) {
+    return '<div class="kpi' + (alert ? ' alert' : '') + '"><div class="num">' + num + '</div><div class="lbl">' + label + '</div></div>';
+  }
+
+  function renderIncidents(list) {
+    var tbody = document.querySelector('#incidentsTable tbody');
+    tbody.innerHTML = '';
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#718096;">No assets currently out of order.</td></tr>';
+      return;
+    }
+    list.forEach(function (i) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + i.assetId + '</td><td>' + i.name + '</td><td>' + i.location + '</td><td>' + i.since + '</td><td>' + i.assignedTo + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderAudit(list) {
+    var tbody = document.querySelector('#auditTable tbody');
+    tbody.innerHTML = '';
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#718096;">No activity in the last 24 hours.</td></tr>';
+      return;
+    }
+    list.forEach(function (a) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + a.timestamp + '</td><td>' + a.user + '</td><td>' + a.role + '</td><td>' + a.action + '</td><td>' + a.details + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+</script>
+</body>
+</html>
