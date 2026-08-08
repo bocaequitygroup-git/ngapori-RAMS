@@ -1,147 +1,165 @@
+<!--
+  Index.html — paste this in as a separate HTML file in the same Apps Script
+  project (File -> New -> HTML file -> name it "Index"). Referenced by
+  doGet() in the .gs file via HtmlService.createTemplateFromFile("Index").
+-->
 <!DOCTYPE html>
 <html>
-<head>
-<base target="_top">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    margin: 0;
-    padding: 16px;
-    background: #eef2f5;
-    color: #2d3748;
-  }
-  .card {
-    background: #fff;
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    max-width: 420px;
-    margin: 40px auto;
-  }
-  h2 { margin-top: 0; color: #1a365d; font-size: 20px; text-align: center; }
-  p.sub { text-align: center; color: #718096; font-size: 13px; margin-top: -8px; margin-bottom: 20px; }
-  label { font-weight: 600; margin-top: 14px; display: block; font-size: 13px; color: #4a5568; }
-  input, select, textarea {
-    width: 100%;
-    padding: 11px;
-    margin-top: 4px;
-    border: 1px solid #cbd5e0;
-    border-radius: 6px;
-    font-size: 15px;
-    font-family: inherit;
-  }
-  textarea { resize: vertical; min-height: 70px; }
-  button {
-    background: #2b6cb0;
-    color: #fff;
-    border: none;
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: bold;
-    cursor: pointer;
-    width: 100%;
-    margin-top: 18px;
-  }
-  button:disabled { background: #a0aec0; cursor: not-allowed; }
-  .alert {
-    padding: 12px;
-    border-radius: 6px;
-    text-align: center;
-    margin-top: 14px;
-    font-weight: 600;
-    font-size: 14px;
-  }
-  .error { background: #fed7d7; color: #9b2c2c; }
-  .success { background: #c6f6d5; color: #22543d; }
-  .hidden { display: none !important; }
-</style>
-</head>
-<body>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #0f172a; color: #f8fafc; }
+      .card { background: #1e293b; padding: 24px; border-radius: 12px; border: 1px solid #334155; max-width: 440px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+      h2 { margin-top: 0; color: #38bdf8; font-size: 22px; text-align: center; }
+      label { font-weight: 600; margin-top: 14px; display: block; font-size: 13px; color: #94a3b8; }
+      input, select, textarea { width: 100%; padding: 12px; margin-top: 6px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; color: #fff; box-sizing: border-box; font-size: 15px; }
+      input:focus, select:focus, textarea:focus { border-color: #38bdf8; outline: none; }
+      button { background: #0284c7; color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; margin-top: 20px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+      button:hover { background: #0369a1; }
+      button:disabled { background: #475569; cursor: not-allowed; }
+      .hidden { display: none; }
+      .alert { padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; }
+      .error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+      .success { background: #14532d; color: #86efac; border: 1px solid #166534; }
+      .user-badge { background: #0369a1; color: #e0f2fe; padding: 8px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 18px; }
+      .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+      .kpi-box { background: #0f172a; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #334155; }
+      .kpi-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
+      .kpi-lbl { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>NGAPORI RAMS OS</h2>
 
-<div class="card" id="entrySection">
-  <h2>NGAPORI RANCH</h2>
-  <p class="sub">Field Report</p>
+      <!-- AUTHENTICATION SCREEN -->
+      <div id="loginSection">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username">
 
-  <label for="reportedBy">Your Name</label>
-  <input type="text" id="reportedBy" placeholder="e.g. J. Doe">
+        <label>PIN / Password</label>
+        <input type="password" id="pin" placeholder="****">
 
-  <label for="assetId">Asset ID</label>
-  <input type="text" id="assetId" placeholder="e.g. TR-014">
+        <button type="button" onclick="login()">Authenticate System</button>
+        <div id="loginError" class="alert error hidden">Invalid credentials.</div>
+      </div>
 
-  <label for="workType">Work Type</label>
-  <select id="workType">
-    <option value="Routine">Routine</option>
-    <option value="Repair">Repair</option>
-    <option value="Damage">Damage</option>
-    <option value="Inspection">Inspection</option>
-  </select>
+      <!-- RANCH WORKER INTERFACE -->
+      <div id="workerSection" class="hidden">
+        <div id="workerBadge" class="user-badge"></div>
+        <form id="ramsWorkerForm">
+          <label>Asset ID</label>
+          <input type="text" id="assetId" value="<?= assetId ?>" required placeholder="e.g. TRAC-01">
 
-  <label for="description">Description</label>
-  <textarea id="description" placeholder="What was done / observed"></textarea>
+          <label>Report Classification</label>
+          <select id="workType" required>
+            <? for (var i = 0; i < workTypes.length; i++) { ?>
+              <option value="<?= workTypes[i] ?>"><?= workTypes[i] ?></option>
+            <? } ?>
+          </select>
 
-  <label for="partsUsed">Parts Used (optional)</label>
-  <input type="text" id="partsUsed" placeholder="e.g. hydraulic hose">
+          <label>Field Observations / Notes</label>
+          <textarea id="description" rows="3" placeholder="Log details..." required></textarea>
 
-  <label for="quantity">Quantity (optional)</label>
-  <input type="number" id="quantity" min="0" step="1">
+          <button type="button" id="submitWorkerBtn" onclick="submitWorkerReport()">Submit Signed Report</button>
+        </form>
+        <div id="workerMsg" class="alert hidden"></div>
+      </div>
 
-  <button id="submitBtn" onclick="submitReport()">Submit Report</button>
-  <div id="entryMsg" class="alert hidden"></div>
-</div>
+      <!-- FOUNDER / EXECUTIVE DASHBOARD -->
+      <div id="founderSection" class="hidden">
+        <div id="founderBadge" class="user-badge"></div>
+        <div class="kpi-grid">
+          <div class="kpi-box"><div class="kpi-val" id="kpiOps">-</div><div class="kpi-lbl">Operational</div></div>
+          <div class="kpi-box"><div class="kpi-val" id="kpiOoo" style="color:#f87171;">-</div><div class="kpi-lbl">Out of Order</div></div>
+          <div class="kpi-box"><div class="kpi-val" id="kpiOverdue" style="color:#fbbf24;">-</div><div class="kpi-lbl">Overdue Service</div></div>
+          <div class="kpi-box"><div class="kpi-val" id="kpiLowParts" style="color:#fbbf24;">-</div><div class="kpi-lbl">Low Parts Alerts</div></div>
+          <div class="kpi-box"><div class="kpi-val" id="kpiBasis">-</div><div class="kpi-lbl">Asset Basis ($)</div></div>
+          <div class="kpi-box"><div class="kpi-val" id="kpiCapex">-</div><div class="kpi-lbl">Planned CAPEX ($)</div></div>
+        </div>
+        <p style="font-size:12px; text-align:center; color:#94a3b8;">Full detail available in the spreadsheet database.</p>
+      </div>
+    </div>
 
-<script>
-  function submitReport() {
-    var reportedBy = document.getElementById('reportedBy').value.trim();
-    var assetId = document.getElementById('assetId').value.trim();
-    var description = document.getElementById('description').value.trim();
-    var msgEl = document.getElementById('entryMsg');
-    var btn = document.getElementById('submitBtn');
+    <script>
+      var activeUser = null;
 
-    if (!reportedBy || !assetId || !description) {
-      msgEl.className = 'alert error';
-      msgEl.innerText = 'Name, Asset ID, and Description are required.';
-      msgEl.classList.remove('hidden');
-      return;
-    }
+      function login() {
+        var u = document.getElementById('username').value.trim();
+        var p = document.getElementById('pin').value.trim();
 
-    var payload = {
-      username: reportedBy,
-      role: "Field Entry",
-      assetId: assetId,
-      workType: document.getElementById('workType').value,
-      description: description,
-      partsUsed: document.getElementById('partsUsed').value.trim(),
-      quantity: document.getElementById('quantity').value
-    };
+        google.script.run
+          .withSuccessHandler(function (user) {
+            if (user) {
+              activeUser = user;
+              document.getElementById('loginSection').classList.add('hidden');
 
-    msgEl.classList.add('hidden');
-    btn.disabled = true;
-    btn.innerText = 'Submitting...';
+              if (user.role === "Executive") {
+                document.getElementById('founderSection').classList.remove('hidden');
+                document.getElementById('founderBadge').innerText = "Logged in: " + user.name + " (Founder)";
+                loadDashboardMetrics();
+              } else {
+                document.getElementById('workerSection').classList.remove('hidden');
+                document.getElementById('workerBadge').innerText = "Logged in: " + user.name + " (" + user.role + ")";
+              }
+            } else {
+              document.getElementById('loginError').classList.remove('hidden');
+            }
+          })
+          .withFailureHandler(function () {
+            document.getElementById('loginError').classList.remove('hidden');
+          })
+          .authenticateUser(u, p);
+      }
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        btn.disabled = false;
-        btn.innerText = 'Submit Report';
-        msgEl.className = 'alert success';
-        msgEl.innerText = 'Submitted: ' + result.logId;
-        msgEl.classList.remove('hidden');
-        document.getElementById('assetId').value = '';
-        document.getElementById('description').value = '';
-        document.getElementById('partsUsed').value = '';
-        document.getElementById('quantity').value = '';
-      })
-      .withFailureHandler(function (err) {
-        btn.disabled = false;
-        btn.innerText = 'Submit Report';
-        msgEl.className = 'alert error';
-        msgEl.innerText = 'Server error: ' + (err && err.message ? err.message : err);
-        msgEl.classList.remove('hidden');
-      })
-      .processSignedFieldReport(payload);
-  }
-</script>
-</body>
+      function submitWorkerReport() {
+        var btn = document.getElementById('submitWorkerBtn');
+        btn.disabled = true;
+        btn.innerText = "Signing & Submitting...";
+
+        var payload = {
+          username: activeUser.name,
+          role: activeUser.role,
+          assetId: document.getElementById('assetId').value,
+          workType: document.getElementById('workType').value,
+          description: document.getElementById('description').value
+        };
+
+        google.script.run
+          .withSuccessHandler(function () {
+            document.getElementById('ramsWorkerForm').reset();
+            var msg = document.getElementById('workerMsg');
+            msg.className = "alert success";
+            msg.innerText = "Report signed & logged to RAMS!";
+            msg.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerText = "Submit Signed Report";
+            setTimeout(function () { msg.classList.add('hidden'); }, 4000);
+          })
+          .withFailureHandler(function (err) {
+            var msg = document.getElementById('workerMsg');
+            msg.className = "alert error";
+            msg.innerText = "Submission failed: " + err.message;
+            msg.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerText = "Submit Signed Report";
+          })
+          .processSignedFieldReport(payload);
+      }
+
+      function loadDashboardMetrics() {
+        google.script.run
+          .withSuccessHandler(function (kpis) {
+            document.getElementById('kpiOps').innerText = kpis.operational;
+            document.getElementById('kpiOoo').innerText = kpis.outOfOrder;
+            document.getElementById('kpiOverdue').innerText = kpis.overdueService;
+            document.getElementById('kpiLowParts').innerText = kpis.lowPartsAlerts;
+            document.getElementById('kpiBasis').innerText = "$" + Number(kpis.assetBasis).toLocaleString();
+            document.getElementById('kpiCapex').innerText = "$" + Number(kpis.plannedCapex).toLocaleString();
+          })
+          .getDashboardData();
+      }
+    </script>
+  </body>
 </html>
