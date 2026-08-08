@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; background: #eef2f5; color: #2d3748; }
@@ -186,6 +186,14 @@
       <tbody></tbody>
     </table>
   </div>
+
+  <h3>Recent Logins (Last 24 Hours)</h3>
+  <div class="table-wrap">
+    <table id="loginsTable">
+      <thead><tr><th>Timestamp</th><th>Username</th><th>Name</th><th>Role</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
@@ -197,12 +205,32 @@
   function login() {
     var u = document.getElementById('username').value;
     var p = document.getElementById('pin').value;
-    document.getElementById('loginBtn').disabled = true;
+    var btn = document.getElementById('loginBtn');
+    var errEl = document.getElementById('loginError');
+    errEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerText = 'Logging in...';
+
+    var settled = false;
+    var timeoutId = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      btn.disabled = false;
+      btn.innerText = 'Log In';
+      errEl.innerText = 'Request timed out. Check your connection and try again.';
+      errEl.classList.remove('hidden');
+    }, 15000);
+
     google.script.run
       .withSuccessHandler(function (user) {
-        document.getElementById('loginBtn').disabled = false;
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        btn.disabled = false;
+        btn.innerText = 'Log In';
         if (!user) {
-          document.getElementById('loginError').classList.remove('hidden');
+          errEl.innerText = 'Invalid username or PIN.';
+          errEl.classList.remove('hidden');
           return;
         }
         activeUser = user;
@@ -210,12 +238,26 @@
         routeToRole();
       })
       .withFailureHandler(function (err) {
-        document.getElementById('loginBtn').disabled = false;
-        document.getElementById('loginError').innerText = 'Error: ' + err.message;
-        document.getElementById('loginError').classList.remove('hidden');
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        btn.disabled = false;
+        btn.innerText = 'Log In';
+        errEl.innerText = 'Error: ' + err.message;
+        errEl.classList.remove('hidden');
       })
       .authenticateUser(u, p);
   }
+
+  // Surface any uncaught client-side JS error directly in the login box —
+  // otherwise a broken script can make the Log In button silently do nothing.
+  window.onerror = function (msg, url, line) {
+    var errEl = document.getElementById('loginError');
+    if (errEl) {
+      errEl.innerText = 'Script error: ' + msg + ' (line ' + line + ')';
+      errEl.classList.remove('hidden');
+    }
+  };
 
   function logout() {
     activeUser = null;
@@ -478,6 +520,7 @@
     google.script.run.withSuccessHandler(renderKpis).getKPIs();
     google.script.run.withSuccessHandler(renderIncidents).getCriticalIncidents();
     google.script.run.withSuccessHandler(renderAudit).getAuditTrail(24);
+    google.script.run.withSuccessHandler(renderLogins).getLoginHistory(24);
   }
 
   function renderKpis(k) {
@@ -518,6 +561,23 @@
     list.forEach(function (a) {
       var tr = document.createElement('tr');
       tr.innerHTML = '<td>' + a.timestamp + '</td><td>' + a.user + '</td><td>' + a.role + '</td><td>' + a.action + '</td><td>' + a.details + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderLogins(list) {
+    var tbody = document.querySelector('#loginsTable tbody');
+    tbody.innerHTML = '';
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#718096;">No login attempts in the last 24 hours.</td></tr>';
+      return;
+    }
+    list.forEach(function (l) {
+      var tr = document.createElement('tr');
+      var statusClass = l.status === 'Success' ? 'Completed' : 'Open';
+      tr.innerHTML =
+        '<td>' + l.timestamp + '</td><td>' + l.username + '</td><td>' + l.name + '</td><td>' + l.role +
+        '</td><td><span class="pill ' + statusClass + '">' + l.status + '</span></td>';
       tbody.appendChild(tr);
     });
   }
