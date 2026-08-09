@@ -1487,6 +1487,8 @@
       var chip = document.createElement('div');
       chip.className = 'priority-chip';
       chip.setAttribute('data-level', level);
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-pressed', 'false');
       chip.textContent = level;
       chip.tabIndex = 0;
       chip.addEventListener('click', function(){ selectPriority(level); });
@@ -1498,7 +1500,9 @@
   function selectPriority(level){
     state.priority = level;
     Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){
-      chip.classList.toggle('selected', chip.getAttribute('data-level') === level);
+      var isSel = chip.getAttribute('data-level') === level;
+      chip.classList.toggle('selected', isSel);
+      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     updateSubmitState();
   }
@@ -1514,6 +1518,8 @@
     state.settings.workTypes.forEach(function(wt){
       var chip = document.createElement('div');
       chip.className = 'chip-option';
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-pressed', 'false');
       chip.textContent = wt;
       chip.tabIndex = 0;
       chip.addEventListener('click', function(){ selectWorkType(wt); });
@@ -1525,7 +1531,9 @@
   function selectWorkType(wt){
     state.workType = wt;
     Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){
-      chip.classList.toggle('selected', chip.textContent === wt);
+      var isSel = chip.textContent === wt;
+      chip.classList.toggle('selected', isSel);
+      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     var isDamage = wt === 'Damage / Repair Needed';
     document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
@@ -1539,6 +1547,8 @@
     ['Completed', 'Open / Needs Follow-up'].forEach(function(s){
       var chip = document.createElement('div');
       chip.className = 'chip-option';
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-pressed', 'false');
       chip.textContent = s;
       chip.tabIndex = 0;
       chip.addEventListener('click', function(){ selectWorkStatus(s); });
@@ -1550,7 +1560,9 @@
   function selectWorkStatus(s){
     state.workStatus = s;
     Array.from(document.getElementById('statusToggle').children).forEach(function(chip){
-      chip.classList.toggle('selected', chip.textContent === s);
+      var isSel = chip.textContent === s;
+      chip.classList.toggle('selected', isSel);
+      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     var completedDateInput = document.getElementById('completedDateInput');
     if (s === 'Completed'){
@@ -1762,9 +1774,9 @@
     document.getElementById('damageFlagRow').style.display = 'none';
     document.getElementById('woNumber').textContent = 'Assigned on submit';
     if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
-    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); });
-    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){ chip.classList.remove('selected'); });
-    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){ chip.classList.remove('selected'); });
+    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
+    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
+    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
     renderPartsList();
     selectServicedBy('Ranch Crew');
     updateSubmitState();
