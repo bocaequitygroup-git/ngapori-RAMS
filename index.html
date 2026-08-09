@@ -365,6 +365,7 @@
         <button class="btn btn-secondary" id="scanBtn"><span class="icon">▤</span> Scan Asset QR Code</button>
         <button class="btn btn-secondary" id="lookupBtn"><span class="icon">☰</span> Manual Asset Lookup</button>
       </div>
+      <button class="btn btn-secondary" id="registerBtn" style="margin-top:8px;"><span class="icon">+</span> Register New Asset</button>
       <div class="asset-list" id="assetLookupList" style="display:none; margin-top:10px;"></div>
     </section>
 
@@ -449,6 +450,56 @@
   </div>
 </div>
 
+<!-- Register New Asset modal -->
+<div class="modal-backdrop" id="registerModal">
+  <div class="modal-card" style="max-width:420px; max-height:88vh; overflow-y:auto;">
+    <h3>Register New Asset</h3>
+    <div class="field">
+      <label for="regAssetId">Ranch Asset ID <span class="required-mark">*</span></label>
+      <input type="text" id="regAssetId" placeholder="e.g. TRAC-02">
+      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it.</div>
+    </div>
+    <div class="field">
+      <label for="regAssetName">Asset Name <span class="required-mark">*</span></label>
+      <input type="text" id="regAssetName" placeholder="e.g. Kubota RTV Utility Vehicle">
+    </div>
+    <div class="field">
+      <label for="regCategory">Category <span class="required-mark">*</span></label>
+      <select id="regCategory"></select>
+    </div>
+    <div class="field">
+      <label for="regLocation">Location</label>
+      <input type="text" id="regLocation" placeholder="e.g. Equipment Yard">
+    </div>
+    <div class="field">
+      <label for="regIdNumber" id="regIdLabel">Manufacturer Serial Number</label>
+      <input type="text" id="regIdNumber" placeholder="e.g. serial or ID plate number">
+      <div class="field-hint">Vehicles ask for a VIN; other equipment uses whatever ID is stamped on it — a serial number, model tag, or asset plate number.</div>
+    </div>
+    <div class="field">
+      <label for="regServiceInterval">Service Interval (days)</label>
+      <input type="number" id="regServiceInterval" min="1" value="90">
+    </div>
+    <div class="field">
+      <label for="regLastServiced">Last Serviced</label>
+      <input type="date" id="regLastServiced">
+    </div>
+    <div class="field">
+      <label for="regPurchasePrice">Purchase Price (USD)</label>
+      <input type="number" id="regPurchasePrice" min="0" step="0.01" value="0.00">
+    </div>
+    <div class="field">
+      <label for="regStatus">Status</label>
+      <select id="regStatus"></select>
+    </div>
+    <div class="error-text" id="regError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="regCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="regSubmitBtn">Add Asset</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
 
@@ -510,6 +561,26 @@
     } else {
       var match = DEMO.users.find(function(u){ return u.username === username && u.pin === pin; });
       setTimeout(function(){ cb(match ? { username: match.username, displayName: match.displayName, role: match.role } : null); }, 150);
+    }
+  }
+
+  function backendRegisterAsset(data, cb, errCb){
+    if (HAS_BACKEND){
+      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
+        if (errCb) errCb(err); else showToast('Failed', String(err));
+      }).registerAsset(data);
+    } else {
+      var exists = DEMO.assets.some(function(a){ return a.assetId.toLowerCase() === String(data.assetId).toLowerCase(); });
+      if (exists){ if (errCb) errCb('Asset ID "' + data.assetId + '" already exists in ASSET_REGISTRY.'); return; }
+      setTimeout(function(){
+        DEMO.assets.push({
+          assetId: data.assetId, assetName: data.assetName, category: data.category, location: data.location,
+          status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
+          lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
+          identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || ''
+        });
+        cb({ assetId: data.assetId, data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } });
+      }, 180);
     }
   }
 
@@ -734,6 +805,7 @@
           '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
           '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
           '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
+          (a.identifierNumber ? '<div><div class="k">' + (a.identifierType || 'ID') + '</div><div class="v mono" style="font-size:11.5px;">' + a.identifierNumber + '</div></div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -818,6 +890,106 @@
       showToast('Not found', 'No asset "' + assetId + '" in ASSET_REGISTRY — try Manual Lookup.');
     }
   }
+
+  /* =========================================================================
+     REGISTER NEW ASSET
+  ========================================================================= */
+
+  var registerBtn = document.getElementById('registerBtn');
+  var registerModal = document.getElementById('registerModal');
+  var regCategory = document.getElementById('regCategory');
+  var regStatus = document.getElementById('regStatus');
+  var regIdLabel = document.getElementById('regIdLabel');
+  var regIdNumber = document.getElementById('regIdNumber');
+  var regError = document.getElementById('regError');
+
+  var VIN_CATEGORIES = ['Vehicle'];
+
+  function populateRegisterForm(){
+    regCategory.innerHTML = '';
+    state.settings.categoryOptions.forEach(function(c){
+      var opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      regCategory.appendChild(opt);
+    });
+    regStatus.innerHTML = '';
+    state.settings.statusOptions.forEach(function(s){
+      var opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      regStatus.appendChild(opt);
+    });
+    updateIdentifierLabel();
+  }
+
+  function updateIdentifierLabel(){
+    var isVehicle = VIN_CATEGORIES.indexOf(regCategory.value) !== -1;
+    regIdLabel.textContent = isVehicle ? 'VIN' : 'Manufacturer Serial Number';
+    regIdNumber.placeholder = isVehicle ? '17-character VIN' : 'e.g. serial or ID plate number';
+  }
+  regCategory.addEventListener('change', updateIdentifierLabel);
+
+  registerBtn.addEventListener('click', function(){
+    clearRegisterForm();
+    registerModal.classList.add('show');
+  });
+  document.getElementById('regCancelBtn').addEventListener('click', function(){
+    registerModal.classList.remove('show');
+  });
+
+  function clearRegisterForm(){
+    document.getElementById('regAssetId').value = '';
+    document.getElementById('regAssetName').value = '';
+    document.getElementById('regLocation').value = '';
+    regIdNumber.value = '';
+    document.getElementById('regServiceInterval').value = state.settings.defaultServiceIntervalDays || 90;
+    document.getElementById('regLastServiced').value = '';
+    document.getElementById('regPurchasePrice').value = '0.00';
+    regStatus.value = 'Operational';
+    regError.classList.remove('show');
+    updateIdentifierLabel();
+  }
+
+  document.getElementById('regSubmitBtn').addEventListener('click', function(){
+    var assetId = document.getElementById('regAssetId').value.trim();
+    var assetName = document.getElementById('regAssetName').value.trim();
+    if (!assetId || !assetName){
+      regError.textContent = 'Ranch Asset ID and Asset Name are both required.';
+      regError.classList.add('show');
+      return;
+    }
+    var payload = {
+      assetId: assetId,
+      assetName: assetName,
+      category: regCategory.value,
+      location: document.getElementById('regLocation').value.trim(),
+      identifierType: regIdLabel.textContent,
+      identifierNumber: regIdNumber.value.trim(),
+      serviceIntervalDays: document.getElementById('regServiceInterval').value,
+      lastServiced: document.getElementById('regLastServiced').value,
+      purchasePrice: document.getElementById('regPurchasePrice').value,
+      status: regStatus.value
+    };
+
+    var btn = document.getElementById('regSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    backendRegisterAsset(payload, function(result){
+      btn.disabled = false;
+      btn.textContent = 'Add Asset';
+      registerModal.classList.remove('show');
+      state.assets = result.data.assets;
+      state.parts = result.data.parts;
+      renderKpis();
+      selectAsset(result.assetId);
+      showToast(result.assetId, 'Added to ASSET_REGISTRY.');
+    }, function(err){
+      btn.disabled = false;
+      btn.textContent = 'Add Asset';
+      regError.textContent = String(err && err.message ? err.message : err);
+      regError.classList.add('show');
+    });
+  });
 
   /* =========================================================================
      WORK ORDER FORM
@@ -1030,6 +1202,7 @@
     renderPartsList();
     renderAssetPlate();
     renderRecentLog();
+    populateRegisterForm();
     updateSubmitState();
   }
 
