@@ -219,17 +219,21 @@
   .chip-option{
     border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
     padding:11px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:500;
-    line-height:1.3;
+    line-height:1.3; transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   }
-  .chip-option.selected{ border-color:var(--rust); background:rgba(168,67,31,0.08); color:var(--rust-dark); font-weight:600; }
+  .chip-option.selected{
+    border-color:var(--rust); border-width:2px; background:var(--rust); color:#F9F2E7; font-weight:700;
+    box-shadow:0 2px 6px rgba(168,67,31,0.35);
+  }
+  .chip-option.selected::before{ content:"✓ "; }
   .chip-option:hover{ border-color:var(--rust); }
 
   .parts-list{ display:flex; flex-direction:column; gap:8px; }
   .part-row{
     display:flex; align-items:center; gap:10px; border:1.5px solid var(--card-line);
-    border-radius:8px; padding:9px 10px; background:#fff;
+    border-radius:8px; padding:9px 10px; background:#fff; cursor:pointer;
   }
-  .part-row.on .stock-tag{ }
+  .part-row.selected{ border-color:var(--rust); background:rgba(168,67,31,0.06); }
   .part-row input[type=checkbox]{ width:18px; height:18px; flex:0 0 auto; accent-color:var(--rust); }
   .part-row .pname{ flex:1; font-size:13.5px; }
   .part-row .stock-tag{ font-size:10.5px; color:var(--ink-soft); }
@@ -300,6 +304,13 @@
     box-shadow:0 12px 34px rgba(0,0,0,0.4);
   }
   .modal-card h3{ font-size:16px; text-transform:uppercase; margin-bottom:10px; }
+  .modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .modal-head h3{ margin-bottom:0; }
+  .modal-x{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--card-line);
+    background:var(--canvas); color:var(--ink); font-size:16px; line-height:1; cursor:pointer;
+  }
+  .modal-x:hover{ background:var(--canvas-deep); }
   .scan-video-wrap{
     background:#000; border-radius:10px; overflow:hidden; aspect-ratio:1/1; position:relative;
     display:flex; align-items:center; justify-content:center; margin-bottom:12px;
@@ -464,7 +475,10 @@
 <!-- QR Scan modal -->
 <div class="modal-backdrop" id="scanModal">
   <div class="modal-card">
-    <h3>Scan Asset QR Code</h3>
+    <div class="modal-head">
+      <h3>Scan Asset QR Code</h3>
+      <button type="button" class="modal-x" id="scanCloseX" aria-label="Close">×</button>
+    </div>
     <div class="scan-video-wrap" id="scanVideoWrap">
       <div class="scan-fallback" id="scanFallback">Starting camera…</div>
     </div>
@@ -477,7 +491,10 @@
 <!-- Register New Asset modal -->
 <div class="modal-backdrop" id="registerModal">
   <div class="modal-card" style="max-width:420px; max-height:88vh; overflow-y:auto;">
-    <h3>Register New Asset</h3>
+    <div class="modal-head">
+      <h3>Register New Asset</h3>
+      <button type="button" class="modal-x" id="regCloseX" aria-label="Close">×</button>
+    </div>
     <div class="field">
       <label for="regAssetId">Ranch Asset ID <span class="required-mark">*</span></label>
       <div style="display:flex; gap:8px;">
@@ -489,6 +506,11 @@
     <div class="field">
       <label for="regAssetName">Asset Name <span class="required-mark">*</span></label>
       <input type="text" id="regAssetName" placeholder="e.g. Kubota RTV Utility Vehicle">
+    </div>
+    <div class="field">
+      <label>Date Created</label>
+      <div class="textlike mono" id="regDateCreated" style="background:var(--canvas); color:var(--ink-soft);">—</div>
+      <div class="field-hint">Stamped automatically the moment you save this asset — not editable.</div>
     </div>
     <div class="field">
       <label for="regCategory">Category <span class="required-mark">*</span></label>
@@ -916,6 +938,7 @@
 
   scanBtn.addEventListener('click', openScanModal);
   scanCancelBtn.addEventListener('click', closeScanModal);
+  document.getElementById('scanCloseX').addEventListener('click', closeScanModal);
 
   function openScanModal(){
     scanModal.classList.add('show');
@@ -1112,10 +1135,14 @@
   document.getElementById('regCancelBtn').addEventListener('click', function(){
     registerModal.classList.remove('show');
   });
+  document.getElementById('regCloseX').addEventListener('click', function(){
+    registerModal.classList.remove('show');
+  });
 
   function clearRegisterForm(){
     document.getElementById('regAssetId').value = '';
     document.getElementById('regAssetName').value = '';
+    document.getElementById('regDateCreated').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     document.getElementById('regManufacturer').value = '';
     document.getElementById('regLocation').value = '';
     regIdNumber.value = '';
@@ -1169,7 +1196,7 @@
       state.parts = result.data.parts;
       renderKpis();
       selectAsset(result.assetId);
-      showToast(result.assetId, 'Added to ASSET_REGISTRY.');
+      showToast(result.assetId, 'Added to ASSET_REGISTRY on ' + document.getElementById('regDateCreated').textContent + '.');
     }, function(err){
       btn.disabled = false;
       btn.textContent = 'Add Asset';
@@ -1265,6 +1292,11 @@
       wrap.innerHTML = '<div class="no-parts-note">No parts in PARTS_INVENTORY yet.</div>';
       return;
     }
+    var hint = document.createElement('div');
+    hint.className = 'no-parts-note';
+    hint.textContent = 'Nothing selected — tap a part to add it.';
+    wrap.appendChild(hint);
+
     state.parts.forEach(function(p){
       var row = document.createElement('div');
       row.className = 'part-row';
@@ -1272,18 +1304,33 @@
       row.innerHTML =
         '<input type="checkbox" id="part-' + cssSafe(p.name) + '">' +
         '<span class="pname">' + p.name + '<br><span class="stock-tag ' + (low ? 'low' : '') + '">' + p.onHand + ' on hand' + (low ? ' · LOW' : '') + '</span></span>' +
-        '<div class="qty-stepper" style="visibility:hidden;">' +
+        '<div class="qty-stepper" style="display:none;">' +
           '<button type="button" class="qty-minus">−</button>' +
           '<input type="number" min="1" value="1" class="qty-input">' +
           '<button type="button" class="qty-plus">+</button>' +
         '</div>';
       var checkbox = row.querySelector('input[type=checkbox]');
+      checkbox.checked = false;
       var stepper = row.querySelector('.qty-stepper');
       var qtyInput = row.querySelector('.qty-input');
-      checkbox.addEventListener('change', function(){
-        stepper.style.visibility = checkbox.checked ? 'visible' : 'hidden';
+
+      function applyCheckedState(){
+        stepper.style.display = checkbox.checked ? 'flex' : 'none';
+        row.classList.toggle('selected', checkbox.checked);
         if (checkbox.checked) state.selectedParts[p.name] = Number(qtyInput.value) || 1;
         else delete state.selectedParts[p.name];
+        var currentHint = wrap.querySelector('.no-parts-note');
+        if (currentHint){
+          var count = Object.keys(state.selectedParts).length;
+          currentHint.textContent = count ? count + ' part' + (count > 1 ? 's' : '') + ' selected.' : 'Nothing selected — tap a part to add it.';
+        }
+      }
+
+      checkbox.addEventListener('change', applyCheckedState);
+      row.addEventListener('click', function(e){
+        if (e.target === checkbox || e.target.closest('.qty-stepper')) return;
+        checkbox.checked = !checkbox.checked;
+        applyCheckedState();
       });
       row.querySelector('.qty-minus').addEventListener('click', function(){
         qtyInput.value = Math.max(1, (Number(qtyInput.value) || 1) - 1);
