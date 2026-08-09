@@ -508,7 +508,7 @@
         </div>
 
         <div class="wo-block">
-          <div class="k">Priority</div>
+          <div class="k">Priority <span class="required-mark">*</span></div>
           <div class="priority-toggle" id="priorityToggle"></div>
         </div>
 
@@ -928,7 +928,7 @@
     selectedAsset: null,
     workType: null,
     workStatus: null,
-    priority: 'Medium',
+    priority: null,
     selectedParts: {}   // { partName: qty }
   };
 
@@ -1493,7 +1493,6 @@
       chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); selectPriority(level); } });
       wrap.appendChild(chip);
     });
-    selectPriority('Medium');
   }
 
   function selectPriority(level){
@@ -1501,6 +1500,7 @@
     Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){
       chip.classList.toggle('selected', chip.getAttribute('data-level') === level);
     });
+    updateSubmitState();
   }
 
   function priorityTagHtml(priority){
@@ -1545,7 +1545,6 @@
       chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkStatus(s); } });
       wrap.appendChild(chip);
     });
-    selectWorkStatus('Completed');
   }
 
   function selectWorkStatus(s){
@@ -1559,6 +1558,7 @@
     } else {
       completedDateInput.value = '';
     }
+    updateSubmitState();
   }
 
   var vendorNameInput = document.getElementById('vendorNameInput');
@@ -1659,7 +1659,8 @@
 
   function updateSubmitState(){
     var vendorOk = state.servicedBy !== 'Vendor / Outside Shop' || vendorNameInput.value.trim().length > 0;
-    var ok = state.selectedAsset && state.workType && descriptionInput.value.trim().length > 0 && vendorOk;
+    var ok = state.selectedAsset && state.workType && state.workStatus && state.priority &&
+      descriptionInput.value.trim().length > 0 && vendorOk;
     document.getElementById('submitBtn').disabled = !ok;
   }
 
@@ -1748,6 +1749,8 @@
     if (!keepAsset){ state.selectedAsset = null; renderAssetPlate(); }
     renderWoAssetLine();
     state.workType = null;
+    state.workStatus = null;
+    state.priority = null;
     state.selectedParts = {};
     descriptionInput.value = '';
     document.getElementById('workPerformedInput').value = '';
@@ -1760,9 +1763,9 @@
     document.getElementById('woNumber').textContent = 'Assigned on submit';
     if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
     Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); });
+    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){ chip.classList.remove('selected'); });
+    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){ chip.classList.remove('selected'); });
     renderPartsList();
-    selectPriority('Medium');
-    selectWorkStatus('Completed');
     selectServicedBy('Ranch Crew');
     updateSubmitState();
   }
