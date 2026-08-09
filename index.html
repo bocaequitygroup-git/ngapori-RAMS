@@ -256,6 +256,16 @@
   .field-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:5px; }
   .required-mark{ color:var(--rust); }
 
+  .photo-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px; }
+  .photo-thumb{ position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:1px solid var(--card-line); background:var(--canvas-deep); }
+  .photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-thumb .rm{
+    position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%;
+    background:rgba(36,31,26,0.75); color:#F4E9D8; border:none; font-size:12px; line-height:1; cursor:pointer;
+  }
+  .photo-count-note{ font-size:11.5px; margin-top:6px; color:var(--ink-soft); }
+  .photo-count-note.ok{ color:var(--sage-dark); }
+
   /* recent log */
   .log-list{ display:flex; flex-direction:column; gap:8px; }
   .log-item{
@@ -492,6 +502,13 @@
       <label for="regStatus">Status</label>
       <select id="regStatus"></select>
     </div>
+    <div class="field">
+      <label>Asset Photos <span class="required-mark">*</span></label>
+      <div class="field-hint" style="margin-top:0; margin-bottom:8px;">Add at least 3 — wide shot, close-up of any ID plate or VIN, and anything worth documenting now (dents, wear, accessories).</div>
+      <input type="file" id="regPhotoInput" accept="image/*" capture="environment" multiple style="display:none;">
+      <button type="button" class="btn btn-secondary" id="regAddPhotoBtn"><span class="icon">📷</span> Add Photos</button>
+      <div class="photo-grid" id="regPhotoGrid"></div>
+    </div>
     <div class="error-text" id="regError"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="regCancelBtn">Cancel</button>
@@ -577,7 +594,8 @@
           assetId: data.assetId, assetName: data.assetName, category: data.category, location: data.location,
           status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
           lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
-          identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || ''
+          identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || '',
+          photoUrls: (data.photos || []).map(function(_, i){ return 'demo://photo-' + (i + 1); }).join(', ')
         });
         cb({ assetId: data.assetId, data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } });
       }, 180);
@@ -902,6 +920,72 @@
   var regIdLabel = document.getElementById('regIdLabel');
   var regIdNumber = document.getElementById('regIdNumber');
   var regError = document.getElementById('regError');
+  var regPhotos = []; // { dataUrl, mimeType, filename }
+
+  var regPhotoInput = document.getElementById('regPhotoInput');
+  var regAddPhotoBtn = document.getElementById('regAddPhotoBtn');
+  var regPhotoGrid = document.getElementById('regPhotoGrid');
+
+  regAddPhotoBtn.addEventListener('click', function(){ regPhotoInput.click(); });
+
+  regPhotoInput.addEventListener('change', function(){
+    var files = Array.from(regPhotoInput.files || []);
+    files.forEach(function(file){
+      resizeImageFile_(file).then(function(result){
+        regPhotos.push({ dataUrl: result.dataUrl, mimeType: result.mimeType, filename: 'photo-' + (regPhotos.length + 1) + '.jpg' });
+        renderPhotoGrid();
+      }).catch(function(){
+        showToast('Skipped', 'One photo couldn\'t be read — try again.');
+      });
+    });
+    regPhotoInput.value = '';
+  });
+
+  function resizeImageFile_(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = function(e){
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function(){
+          var maxDim = 1280;
+          var w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim){
+            if (w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.82), mimeType: 'image/jpeg' });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderPhotoGrid(){
+    regPhotoGrid.innerHTML = '';
+    regPhotos.forEach(function(p, idx){
+      var thumb = document.createElement('div');
+      thumb.className = 'photo-thumb';
+      thumb.innerHTML = '<img src="' + p.dataUrl + '" alt="Asset photo ' + (idx + 1) + '"><button type="button" class="rm" aria-label="Remove photo">×</button>';
+      thumb.querySelector('.rm').addEventListener('click', function(){
+        regPhotos.splice(idx, 1);
+        renderPhotoGrid();
+      });
+      regPhotoGrid.appendChild(thumb);
+    });
+    var note = document.getElementById('regPhotoCountNote');
+    if (note) note.remove();
+    var el = document.createElement('div');
+    el.id = 'regPhotoCountNote';
+    el.className = 'photo-count-note' + (regPhotos.length >= 3 ? ' ok' : '');
+    el.textContent = regPhotos.length + ' of 3+ photos added.';
+    regPhotoGrid.insertAdjacentElement('afterend', el);
+  }
 
   var VIN_CATEGORIES = ['Vehicle'];
 
@@ -946,6 +1030,8 @@
     document.getElementById('regPurchasePrice').value = '0.00';
     regStatus.value = 'Operational';
     regError.classList.remove('show');
+    regPhotos = [];
+    renderPhotoGrid();
     updateIdentifierLabel();
   }
 
@@ -954,6 +1040,11 @@
     var assetName = document.getElementById('regAssetName').value.trim();
     if (!assetId || !assetName){
       regError.textContent = 'Ranch Asset ID and Asset Name are both required.';
+      regError.classList.add('show');
+      return;
+    }
+    if (regPhotos.length < 3){
+      regError.textContent = 'Add at least 3 photos of the asset before saving.';
       regError.classList.add('show');
       return;
     }
@@ -967,7 +1058,8 @@
       serviceIntervalDays: document.getElementById('regServiceInterval').value,
       lastServiced: document.getElementById('regLastServiced').value,
       purchasePrice: document.getElementById('regPurchasePrice').value,
-      status: regStatus.value
+      status: regStatus.value,
+      photos: regPhotos.map(function(p){ return { filename: p.filename, mimeType: p.mimeType, base64: p.dataUrl.split(',')[1] }; })
     };
 
     var btn = document.getElementById('regSubmitBtn');
