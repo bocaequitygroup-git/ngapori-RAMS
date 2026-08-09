@@ -215,6 +215,76 @@
     background:var(--card); border:1px solid var(--card-line); border-radius:12px;
     padding:18px 16px; box-shadow:0 2px 8px rgba(36,31,26,0.08);
   }
+
+  /* ---- work order pad (redesigned Log Work Order card) ---- */
+  .wo-pad{
+    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
+    overflow:hidden; box-shadow:0 2px 8px rgba(36,31,26,0.08);
+  }
+  .wo-pad-band{
+    position:relative; background:linear-gradient(180deg, var(--ink) 0%, #171310 100%);
+    color:#F4E9D8; text-align:center; padding:14px 16px 12px;
+    border-bottom:3px double rgba(244,233,216,0.4);
+  }
+  .wo-pad-title{ font-family:'Oswald', sans-serif; font-size:15px; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; }
+  .wo-pad-sub{ font-size:10px; text-transform:uppercase; letter-spacing:0.09em; opacity:0.75; margin-top:3px; }
+
+  .wo-strip{ display:flex; border-bottom:1px dashed var(--card-line); }
+  .wo-strip-item{ flex:1; min-width:0; padding:10px 14px; }
+  .wo-strip-item + .wo-strip-item{ border-left:1px dashed var(--card-line); }
+  .wo-strip .k, .wo-block > .k{
+    font-size:9.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-soft);
+    font-weight:600; margin-bottom:4px;
+  }
+  .wo-strip .v{ font-size:13.5px; font-weight:600; }
+  .wo-strip .v.mono{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; }
+  .wo-inline-input{
+    width:100%; border:none; border-bottom:1.5px solid var(--card-line); background:transparent;
+    padding:2px 0 3px; font-size:13.5px; font-weight:600; color:var(--ink); font-family:inherit;
+  }
+  .wo-inline-input:focus-visible{ outline:none; border-bottom-color:var(--rust); }
+  .wo-inline-input::placeholder{ font-weight:400; color:var(--ink-soft); }
+
+  .wo-block{ padding:12px 16px; }
+  .wo-body{ padding:14px 16px 4px; }
+  .wo-divider{ border-top:1px dashed var(--card-line); margin:0 16px; }
+
+  .wo-asset-line{
+    background:var(--canvas); border:1px solid var(--card-line); border-radius:8px;
+    padding:10px 12px; font-size:13px; line-height:1.4;
+  }
+  .wo-asset-line .aid{ font-family:'IBM Plex Mono', monospace; font-weight:700; }
+  .wo-asset-line .amissing{ color:var(--ink-soft); font-style:italic; }
+
+  .priority-toggle{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .priority-chip{
+    border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
+    padding:10px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:600;
+    transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  }
+  .priority-chip:hover{ border-color:var(--ink-soft); }
+  .priority-chip.selected{ color:#F9F2E7; font-weight:700; box-shadow:0 2px 6px rgba(36,31,26,0.3); }
+  .priority-chip.selected::before{ content:"✓ "; }
+  .priority-chip[data-level="Low"].selected{ border-color:var(--sage-dark); background:var(--sage); }
+  .priority-chip[data-level="Medium"].selected{ border-color:var(--ochre-dark); background:var(--ochre); }
+  .priority-chip[data-level="High"].selected{ border-color:var(--rust-dark); background:var(--rust); }
+  .priority-chip[data-level="Emergency"].selected{ border-color:var(--rust-dark); background:var(--rust-dark); box-shadow:0 0 0 3px rgba(124,46,21,0.25); }
+
+  .priority-tag{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;
+    padding:2px 7px; border-radius:20px; white-space:nowrap;
+  }
+  .priority-tag.low{ background:rgba(78,98,72,0.16); color:var(--sage-dark); }
+  .priority-tag.medium{ background:rgba(184,128,30,0.18); color:var(--ochre-dark); }
+  .priority-tag.high{ background:rgba(168,67,31,0.18); color:var(--rust); }
+  .priority-tag.emergency{ background:var(--rust-dark); color:#F9F2E7; }
+
+  .wo-grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+  .wo-sig .wo-sig-line{
+    font-family:'Oswald', sans-serif; font-style:italic; font-size:16px; font-weight:600;
+    padding-bottom:6px; border-bottom:1.5px solid var(--ink); min-height:20px;
+  }
+
   .work-type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .chip-option{
     border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
@@ -409,50 +479,134 @@
     <!-- Work order form -->
     <section>
       <div class="section-title">Log Work Order</div>
-      <div class="form-card">
-        <div class="field">
-          <label>Work Type <span class="required-mark">*</span></label>
-          <div class="work-type-grid" id="workTypeGrid"></div>
+      <div class="wo-pad">
+
+        <div class="wo-pad-band">
+          <div class="wo-pad-title">Ranch Work Order</div>
+          <div class="wo-pad-sub">Ngapori Field Maintenance</div>
         </div>
 
-        <div class="field">
-          <label for="descriptionInput">Description <span class="required-mark">*</span></label>
-          <textarea id="descriptionInput" placeholder="What did you find or do? Be specific — this becomes the permanent audit record."></textarea>
+        <div class="wo-strip">
+          <div class="wo-strip-item">
+            <div class="k">Work Order #</div>
+            <div class="v mono" id="woNumber">Assigned on submit</div>
+          </div>
+          <div class="wo-strip-item">
+            <div class="k">Date</div>
+            <div class="v mono" id="woDate">—</div>
+          </div>
+        </div>
+        <div class="wo-strip">
+          <div class="wo-strip-item">
+            <div class="k">Requested By</div>
+            <div class="v" id="woRequestedBy">—</div>
+          </div>
+          <div class="wo-strip-item">
+            <label for="woAssignedTo" class="k">Assigned To</label>
+            <input type="text" id="woAssignedTo" class="wo-inline-input" placeholder="Crew member name">
+          </div>
         </div>
 
-        <div class="field">
-          <label>Parts Used</label>
-          <div class="parts-list" id="partsList"></div>
+        <div class="wo-block">
+          <div class="k">Priority</div>
+          <div class="priority-toggle" id="priorityToggle"></div>
         </div>
 
-        <div class="field">
-          <label for="costInput">Cost (USD)</label>
-          <input type="number" id="costInput" min="0" step="0.01" value="0.00">
+        <div class="wo-divider"></div>
+
+        <div class="wo-block">
+          <div class="k">Asset Information</div>
+          <div class="wo-asset-line" id="woAssetLine"><span class="amissing">No asset selected — scan or look one up above.</span></div>
         </div>
 
-        <div class="field">
-          <label>Work Status <span class="required-mark">*</span></label>
-          <div class="status-toggle" id="statusToggle"></div>
+        <div class="wo-divider"></div>
+
+        <div class="wo-body">
+          <div class="field">
+            <label for="descriptionInput">Description of Problem <span class="required-mark">*</span></label>
+            <textarea id="descriptionInput" placeholder="What's wrong, or what needs doing? Be specific — this becomes the permanent audit record."></textarea>
+          </div>
+
+          <div class="field">
+            <label>Work Type <span class="required-mark">*</span></label>
+            <div class="work-type-grid" id="workTypeGrid"></div>
+          </div>
+
+          <div class="field">
+            <label>Parts / Materials Needed</label>
+            <div class="parts-list" id="partsList"></div>
+          </div>
         </div>
 
-        <div class="field">
-          <label>Serviced By <span class="required-mark">*</span></label>
-          <div class="status-toggle" id="servicedByToggle"></div>
-          <input type="text" id="vendorNameInput" placeholder="Vendor / shop name" style="display:none; margin-top:8px;">
+        <div class="wo-divider"></div>
+
+        <div class="wo-body">
+          <div class="field">
+            <label for="workPerformedInput">Work Performed</label>
+            <textarea id="workPerformedInput" placeholder="What was actually done to resolve it (leave blank if still open)."></textarea>
+          </div>
+
+          <div class="field">
+            <label>Work Status <span class="required-mark">*</span></label>
+            <div class="status-toggle" id="statusToggle"></div>
+          </div>
+
+          <div class="field">
+            <label>Serviced By <span class="required-mark">*</span></label>
+            <div class="status-toggle" id="servicedByToggle"></div>
+            <input type="text" id="vendorNameInput" placeholder="Vendor / shop name" style="display:none; margin-top:8px;">
+          </div>
+
+          <div class="damage-flag" id="damageFlagRow" style="display:none;">
+            <input type="checkbox" id="markOutOfOrder">
+            <label for="markOutOfOrder" class="txt">
+              <b>Mark asset Out of Order</b>
+              Updates ASSET_REGISTRY immediately and pulls this asset off the operational count on the dashboard.
+            </label>
+          </div>
         </div>
 
-        <div class="damage-flag" id="damageFlagRow" style="display:none;">
-          <input type="checkbox" id="markOutOfOrder">
-          <label for="markOutOfOrder" class="txt">
-            <b>Mark asset Out of Order</b>
-            Updates ASSET_REGISTRY immediately and pulls this asset off the operational count on the dashboard.
-          </label>
+        <div class="wo-divider"></div>
+
+        <div class="wo-block">
+          <div class="k">Labor & Completion</div>
+          <div class="wo-grid-2">
+            <div class="field">
+              <label for="hoursInput">Total Hours</label>
+              <input type="number" id="hoursInput" min="0" step="0.25" placeholder="0.0">
+            </div>
+            <div class="field">
+              <label for="completedDateInput">Completed Date</label>
+              <input type="date" id="completedDateInput">
+            </div>
+          </div>
+          <div class="field">
+            <label for="costInput">Cost (USD)</label>
+            <input type="number" id="costInput" min="0" step="0.01" value="0.00">
+          </div>
         </div>
 
-        <div class="field-hint" style="margin-top:14px; margin-bottom:10px;">
-          On submit, RAMS stamps the Log ID, timestamp, your name and role automatically.
+        <div class="wo-divider"></div>
+
+        <div class="wo-block">
+          <div class="wo-grid-2">
+            <div class="wo-sig">
+              <div class="k">Worker Signature</div>
+              <div class="wo-sig-line" id="woWorkerSig">—</div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label for="managerSignoffInput">Manager Sign-off</label>
+              <input type="text" id="managerSignoffInput" placeholder="Optional — name/initials">
+            </div>
+          </div>
         </div>
-        <button class="btn btn-primary" id="submitBtn" disabled>Submit Work Order</button>
+
+        <div class="wo-body" style="padding-top:6px;">
+          <div class="field-hint" style="margin-top:0; margin-bottom:10px;">
+            On submit, RAMS stamps the Work Order #, timestamp, your name and role automatically.
+          </div>
+          <button class="btn btn-primary" id="submitBtn" disabled>Submit Work Order</button>
+        </div>
       </div>
     </section>
 
@@ -774,6 +928,7 @@
     selectedAsset: null,
     workType: null,
     workStatus: null,
+    priority: 'Medium',
     selectedParts: {}   // { partName: qty }
   };
 
@@ -830,6 +985,7 @@
     document.getElementById('modeFooter').textContent = HAS_BACKEND
       ? 'Connected to the live Ngapori_RAMS_v2 sheet.'
       : 'Preview mode — running on sample data, not yet connected to the live sheet.';
+    renderWoHeader();
     renderAll();
   }
 
@@ -961,6 +1117,7 @@
     var asset = state.assets.find(function(a){ return a.assetId === assetId; });
     state.selectedAsset = asset || null;
     renderAssetPlate();
+    renderWoAssetLine();
     updateSubmitState();
   }
 
@@ -1297,6 +1454,60 @@
      WORK ORDER FORM
   ========================================================================= */
 
+  function todayIso(){ return new Date().toISOString().slice(0, 10); }
+
+  function renderWoHeader(){
+    if (!state.currentUser) return;
+    document.getElementById('woDate').textContent =
+      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    document.getElementById('woRequestedBy').textContent = state.currentUser.displayName;
+    document.getElementById('woWorkerSig').textContent = state.currentUser.displayName;
+    var assignedInput = document.getElementById('woAssignedTo');
+    if (!assignedInput.value.trim()) assignedInput.value = state.currentUser.displayName;
+  }
+
+  function renderWoAssetLine(){
+    var el = document.getElementById('woAssetLine');
+    if (!state.selectedAsset){
+      el.innerHTML = '<span class="amissing">No asset selected — scan or look one up above.</span>';
+      return;
+    }
+    var a = state.selectedAsset;
+    el.innerHTML =
+      '<span class="aid">' + a.assetId + '</span> — ' + a.assetName +
+      '<br><span style="color:var(--ink-soft); font-size:12px;">' +
+        a.category + (a.assetType ? ' · ' + a.assetType : '') + ' · ' + a.location +
+      '</span>';
+  }
+
+  function renderPriorityToggle(){
+    var wrap = document.getElementById('priorityToggle');
+    wrap.innerHTML = '';
+    ['Low', 'Medium', 'High', 'Emergency'].forEach(function(level){
+      var chip = document.createElement('div');
+      chip.className = 'priority-chip';
+      chip.setAttribute('data-level', level);
+      chip.textContent = level;
+      chip.tabIndex = 0;
+      chip.addEventListener('click', function(){ selectPriority(level); });
+      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); selectPriority(level); } });
+      wrap.appendChild(chip);
+    });
+    selectPriority('Medium');
+  }
+
+  function selectPriority(level){
+    state.priority = level;
+    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){
+      chip.classList.toggle('selected', chip.getAttribute('data-level') === level);
+    });
+  }
+
+  function priorityTagHtml(priority){
+    var cls = (priority || 'Medium').toLowerCase();
+    return '<span class="priority-tag ' + cls + '">' + (priority || 'Medium') + '</span>';
+  }
+
   function renderWorkTypeGrid(){
     var grid = document.getElementById('workTypeGrid');
     grid.innerHTML = '';
@@ -1342,6 +1553,12 @@
     Array.from(document.getElementById('statusToggle').children).forEach(function(chip){
       chip.classList.toggle('selected', chip.textContent === s);
     });
+    var completedDateInput = document.getElementById('completedDateInput');
+    if (s === 'Completed'){
+      if (!completedDateInput.value) completedDateInput.value = todayIso();
+    } else {
+      completedDateInput.value = '';
+    }
   }
 
   var vendorNameInput = document.getElementById('vendorNameInput');
@@ -1461,14 +1678,20 @@
       assetId: state.selectedAsset.assetId,
       workType: state.workType,
       description: descriptionInput.value.trim(),
+      workPerformed: document.getElementById('workPerformedInput').value.trim(),
       reportedBy: state.currentUser.displayName,
+      assignedTo: document.getElementById('woAssignedTo').value.trim() || state.currentUser.displayName,
       role: state.currentUser.role,
+      priority: state.priority,
       cost: document.getElementById('costInput').value || 0,
+      hours: document.getElementById('hoursInput').value || 0,
+      completedDate: document.getElementById('completedDateInput').value || '',
       status: state.workStatus,
       parts: partsPayload,
       markOutOfOrder: document.getElementById('markOutOfOrder').checked,
       serviceLocation: state.servicedBy,
-      vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : ''
+      vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : '',
+      managerSignoff: document.getElementById('managerSignoffInput').value.trim()
     };
 
     backendSubmitLogEntry(entry, function(result){
@@ -1489,13 +1712,17 @@
 
   var localRecentLog = [];
   function prependLocalLogEntry(logId, timestamp, entry){
-    localRecentLog.unshift({ logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType, description: entry.description, reportedBy: entry.reportedBy, cost: entry.cost, status: entry.status });
+    localRecentLog.unshift({
+      logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType,
+      description: entry.description, reportedBy: entry.reportedBy, assignedTo: entry.assignedTo,
+      priority: entry.priority, cost: entry.cost, status: entry.status
+    });
     renderRecentLog();
   }
 
   function renderRecentLog(){
     var list = document.getElementById('recentLog');
-    var seed = [{ logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', cost: 0, status: 'Completed' }];
+    var seed = [{ logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', priority: 'Low', cost: 0, status: 'Completed' }];
     var items = localRecentLog.concat(seed).slice(0, 6);
     list.innerHTML = '';
     items.forEach(function(entry){
@@ -1504,9 +1731,9 @@
       var when = new Date(entry.timestamp);
       var whenStr = isNaN(when.getTime()) ? entry.timestamp : when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
       el.innerHTML =
-        '<div class="row1"><span class="lid">' + entry.logId + '</span><span class="wtype">' + entry.workType + '</span></div>' +
+        '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
         '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
-        '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + '</span><span>' + whenStr + '</span></div>';
+        '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
       list.appendChild(el);
     });
   }
@@ -1519,14 +1746,22 @@
 
   function resetForm(keepAsset){
     if (!keepAsset){ state.selectedAsset = null; renderAssetPlate(); }
+    renderWoAssetLine();
     state.workType = null;
     state.selectedParts = {};
     descriptionInput.value = '';
+    document.getElementById('workPerformedInput').value = '';
+    document.getElementById('hoursInput').value = '';
+    document.getElementById('completedDateInput').value = '';
+    document.getElementById('managerSignoffInput').value = '';
     document.getElementById('costInput').value = '0.00';
     document.getElementById('markOutOfOrder').checked = false;
     document.getElementById('damageFlagRow').style.display = 'none';
+    document.getElementById('woNumber').textContent = 'Assigned on submit';
+    if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
     Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); });
     renderPartsList();
+    selectPriority('Medium');
     selectWorkStatus('Completed');
     selectServicedBy('Ranch Crew');
     updateSubmitState();
@@ -1553,10 +1788,12 @@
   function renderAll(){
     renderKpis();
     renderWorkTypeGrid();
+    renderPriorityToggle();
     renderStatusToggle();
     renderServicedByToggle();
     renderPartsList();
     renderAssetPlate();
+    renderWoAssetLine();
     renderRecentLog();
     populateRegisterForm();
     populateAssetCategoryFilter();
