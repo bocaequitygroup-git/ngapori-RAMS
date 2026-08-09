@@ -1,165 +1,1047 @@
-<!--
-  Index.html — paste this in as a separate HTML file in the same Apps Script
-  project (File -> New -> HTML file -> name it "Index"). Referenced by
-  doGet() in the .gs file via HtmlService.createTemplateFromFile("Index").
--->
 <!DOCTYPE html>
-<html>
-  <head>
-    <base target="_top">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #0f172a; color: #f8fafc; }
-      .card { background: #1e293b; padding: 24px; border-radius: 12px; border: 1px solid #334155; max-width: 440px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-      h2 { margin-top: 0; color: #38bdf8; font-size: 22px; text-align: center; }
-      label { font-weight: 600; margin-top: 14px; display: block; font-size: 13px; color: #94a3b8; }
-      input, select, textarea { width: 100%; padding: 12px; margin-top: 6px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; color: #fff; box-sizing: border-box; font-size: 15px; }
-      input:focus, select:focus, textarea:focus { border-color: #38bdf8; outline: none; }
-      button { background: #0284c7; color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; margin-top: 20px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-      button:hover { background: #0369a1; }
-      button:disabled { background: #475569; cursor: not-allowed; }
-      .hidden { display: none; }
-      .alert { padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; }
-      .error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
-      .success { background: #14532d; color: #86efac; border: 1px solid #166534; }
-      .user-badge { background: #0369a1; color: #e0f2fe; padding: 8px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 18px; }
-      .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-      .kpi-box { background: #0f172a; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #334155; }
-      .kpi-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
-      .kpi-lbl { font-size: 11px; color: #94a3b8; margin-top: 4px; }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h2>NGAPORI RAMS OS</h2>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Ngapori RAMS — Field Maintenance Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#241F1A;
+    --ink-soft:#5B5348;
+    --canvas:#E7E0CC;
+    --canvas-deep:#D9CEAF;
+    --card:#FBF8EF;
+    --card-line:rgba(36,31,26,0.14);
+    --rust:#A8431F;
+    --rust-dark:#7C2E15;
+    --sage:#4E6248;
+    --sage-dark:#37452F;
+    --ochre:#B8801E;
+    --ochre-dark:#845C11;
+    --steel:#3C5164;
+    --shadow:rgba(36,31,26,0.28);
+    --focus:#2F6FB5;
+  }
 
-      <!-- AUTHENTICATION SCREEN -->
-      <div id="loginSection">
-        <label>Username</label>
-        <input type="text" id="username" placeholder="Enter username">
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      repeating-linear-gradient(115deg, rgba(36,31,26,0.025) 0px, rgba(36,31,26,0.025) 1px, transparent 1px, transparent 5px),
+      var(--canvas);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
 
-        <label>PIN / Password</label>
-        <input type="password" id="pin" placeholder="****">
+  h1,h2,h3,.display{
+    font-family:'Oswald', 'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin:0;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
 
-        <button type="button" onclick="login()">Authenticate System</button>
-        <div id="loginError" class="alert error hidden">Invalid credentials.</div>
-      </div>
+  button{ font-family:inherit; }
+  input,select,textarea{ font-family:'IBM Plex Sans', sans-serif; }
 
-      <!-- RANCH WORKER INTERFACE -->
-      <div id="workerSection" class="hidden">
-        <div id="workerBadge" class="user-badge"></div>
-        <form id="ramsWorkerForm">
-          <label>Asset ID</label>
-          <input type="text" id="assetId" value="<?= assetId ?>" required placeholder="e.g. TRAC-01">
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+    outline:3px solid var(--focus);
+    outline-offset:2px;
+  }
 
-          <label>Report Classification</label>
-          <select id="workType" required>
-            <? for (var i = 0; i < workTypes.length; i++) { ?>
-              <option value="<?= workTypes[i] ?>"><?= workTypes[i] ?></option>
-            <? } ?>
-          </select>
+  .wrap{ max-width:640px; margin:0 auto; padding:0 0 48px; }
 
-          <label>Field Observations / Notes</label>
-          <textarea id="description" rows="3" placeholder="Log details..." required></textarea>
+  /* ---------- stamped-tag header ---------- */
+  .tag-header{
+    position:relative;
+    background:linear-gradient(180deg, var(--rust) 0%, var(--rust-dark) 100%);
+    color:#F4E9D8;
+    padding:22px 24px 26px;
+    box-shadow:0 6px 18px var(--shadow);
+    overflow:hidden;
+  }
+  .tag-header::before{
+    content:"";
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 9px);
+    pointer-events:none;
+  }
+  .rivet{
+    position:absolute; width:9px; height:9px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #F4E9D8, #8B4526 70%, #5c2a12 100%);
+    box-shadow:0 1px 2px rgba(0,0,0,0.5);
+  }
+  .rivet.tl{ top:10px; left:12px; } .rivet.tr{ top:10px; right:12px; }
+  .rivet.bl{ bottom:10px; left:12px; } .rivet.br{ bottom:10px; right:12px; }
 
-          <button type="button" id="submitWorkerBtn" onclick="submitWorkerReport()">Submit Signed Report</button>
-        </form>
-        <div id="workerMsg" class="alert hidden"></div>
-      </div>
+  .tag-header .eyebrow{
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase;
+    opacity:0.85; margin-bottom:4px;
+  }
+  .tag-header h1{ font-size:23px; text-transform:uppercase; line-height:1.15; }
+  .tag-header .sub{ font-size:13px; margin-top:3px; opacity:0.88; }
 
-      <!-- FOUNDER / EXECUTIVE DASHBOARD -->
-      <div id="founderSection" class="hidden">
-        <div id="founderBadge" class="user-badge"></div>
-        <div class="kpi-grid">
-          <div class="kpi-box"><div class="kpi-val" id="kpiOps">-</div><div class="kpi-lbl">Operational</div></div>
-          <div class="kpi-box"><div class="kpi-val" id="kpiOoo" style="color:#f87171;">-</div><div class="kpi-lbl">Out of Order</div></div>
-          <div class="kpi-box"><div class="kpi-val" id="kpiOverdue" style="color:#fbbf24;">-</div><div class="kpi-lbl">Overdue Service</div></div>
-          <div class="kpi-box"><div class="kpi-val" id="kpiLowParts" style="color:#fbbf24;">-</div><div class="kpi-lbl">Low Parts Alerts</div></div>
-          <div class="kpi-box"><div class="kpi-val" id="kpiBasis">-</div><div class="kpi-lbl">Asset Basis ($)</div></div>
-          <div class="kpi-box"><div class="kpi-val" id="kpiCapex">-</div><div class="kpi-lbl">Planned CAPEX ($)</div></div>
-        </div>
-        <p style="font-size:12px; text-align:center; color:#94a3b8;">Full detail available in the spreadsheet database.</p>
-      </div>
+  .user-chip{
+    margin-top:16px; display:flex; align-items:center; justify-content:space-between;
+    background:rgba(0,0,0,0.18); border:1px solid rgba(244,233,216,0.35);
+    border-radius:8px; padding:9px 12px;
+  }
+  .user-chip .who{ font-size:13px; }
+  .user-chip .who b{ font-weight:600; }
+  .user-chip .role-badge{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    background:rgba(244,233,216,0.18); padding:3px 7px; border-radius:4px; margin-left:8px;
+  }
+  .logout-btn{
+    background:none; border:1px solid rgba(244,233,216,0.5); color:#F4E9D8;
+    border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer;
+  }
+  .logout-btn:hover{ background:rgba(244,233,216,0.12); }
+
+  /* ---------- login ---------- */
+  .login-screen{ padding:60px 24px; max-width:400px; margin:0 auto; }
+  .login-card{
+    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
+    padding:26px 22px; box-shadow:0 4px 14px var(--shadow);
+  }
+  .login-card h2{ font-size:19px; text-transform:uppercase; margin-bottom:4px; }
+  .login-card .lead{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; line-height:1.5; }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--ink-soft); font-weight:600; margin-bottom:6px;
+  }
+  select, .textlike{
+    width:100%; padding:12px 12px; border-radius:8px; border:1.5px solid var(--card-line);
+    background:#fff; color:var(--ink); font-size:15px;
+  }
+  input[type=text], input[type=number], input[type=password], input[type=tel], textarea{
+    width:100%; padding:12px 12px; border-radius:8px; border:1.5px solid var(--card-line);
+    background:#fff; color:var(--ink); font-size:15px;
+  }
+  .pin-dots{ letter-spacing:0.4em; font-family:'IBM Plex Mono', monospace; font-size:20px; }
+  textarea{ resize:vertical; min-height:84px; line-height:1.4; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:9px; padding:13px 18px; font-size:14.5px; font-weight:600;
+    cursor:pointer; width:100%; letter-spacing:0.01em;
+  }
+  .btn-primary{ background:var(--rust); color:#F9F2E7; }
+  .btn-primary:hover{ background:var(--rust-dark); }
+  .btn-secondary{ background:var(--card); color:var(--ink); border:1.5px solid var(--card-line); }
+  .btn-secondary:hover{ background:var(--canvas-deep); }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .error-text{ color:var(--rust-dark); font-size:13px; margin-top:10px; display:none; }
+  .error-text.show{ display:block; }
+
+  /* ---------- app shell ---------- */
+  #app{ display:none; }
+
+  /* KPI strip */
+  .kpi-strip{
+    display:flex; gap:10px; overflow-x:auto; padding:16px 20px 4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .kpi-strip::-webkit-scrollbar{ display:none; }
+  .kpi-card{
+    flex:0 0 auto; min-width:118px; background:var(--card); border:1px solid var(--card-line);
+    border-radius:10px; padding:11px 13px; box-shadow:0 2px 6px rgba(36,31,26,0.10);
+  }
+  .kpi-card .num{ font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; line-height:1; }
+  .kpi-card .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); margin-top:5px; line-height:1.3; }
+  .kpi-card.warn .num{ color:var(--ochre-dark); }
+  .kpi-card.danger .num{ color:var(--rust-dark); }
+  .kpi-card.good .num{ color:var(--sage-dark); }
+
+  section{ padding:14px 20px; }
+  .section-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-soft);
+    font-weight:600; margin-bottom:10px;
+  }
+
+  /* quick actions */
+  .quick-actions{ display:flex; gap:10px; }
+  .quick-actions .btn{ padding:14px 10px; font-size:13px; }
+  .icon{ font-size:16px; line-height:1; }
+
+  /* asset tag plate */
+  .asset-plate{
+    position:relative; background:linear-gradient(180deg,#EFE8D6,#E2D9BE);
+    border:1px solid rgba(36,31,26,0.22); border-radius:10px; padding:16px 16px 14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.5), 0 3px 10px rgba(36,31,26,0.14);
+  }
+  .asset-plate .rivet{ background:radial-gradient(circle at 35% 35%, #fff, #9c9484 70%, #6b6353 100%); }
+  .asset-plate .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .asset-plate .asset-id{ font-size:20px; font-weight:600; letter-spacing:0.03em; }
+  .asset-plate .asset-name{ font-size:13.5px; color:var(--ink-soft); margin-top:2px; }
+  .status-badge{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600;
+    padding:4px 9px; border-radius:20px; white-space:nowrap;
+  }
+  .status-badge.op{ background:rgba(78,98,72,0.16); color:var(--sage-dark); }
+  .status-badge.need{ background:rgba(184,128,30,0.18); color:var(--ochre-dark); }
+  .status-badge.down{ background:rgba(124,46,21,0.16); color:var(--rust-dark); }
+  .asset-plate .meta-row{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-top:12px; font-size:12.5px;
+  }
+  .asset-plate .meta-row .k{ color:var(--ink-soft); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; }
+  .asset-plate .meta-row .v{ font-weight:500; margin-top:1px; }
+  .empty-plate{
+    border:1.5px dashed var(--card-line); border-radius:10px; padding:22px 16px; text-align:center;
+    color:var(--ink-soft); font-size:13.5px; line-height:1.5;
+  }
+
+  /* asset lookup list */
+  .asset-search{ margin-bottom:10px; }
+  .asset-list{ max-height:230px; overflow-y:auto; border:1px solid var(--card-line); border-radius:10px; background:var(--card); }
+  .asset-row{
+    width:100%; text-align:left; background:none; border:none; padding:11px 13px;
+    display:flex; justify-content:space-between; align-items:center; gap:8px; cursor:pointer;
+    border-bottom:1px solid var(--card-line); font-size:13.5px;
+  }
+  .asset-row:last-child{ border-bottom:none; }
+  .asset-row:hover{ background:var(--canvas-deep); }
+  .asset-row .aid{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
+  .asset-row .aname{ color:var(--ink-soft); font-size:12px; }
+
+  /* work order form */
+  .form-card{
+    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
+    padding:18px 16px; box-shadow:0 2px 8px rgba(36,31,26,0.08);
+  }
+  .work-type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .chip-option{
+    border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
+    padding:11px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:500;
+    line-height:1.3;
+  }
+  .chip-option.selected{ border-color:var(--rust); background:rgba(168,67,31,0.08); color:var(--rust-dark); font-weight:600; }
+  .chip-option:hover{ border-color:var(--rust); }
+
+  .parts-list{ display:flex; flex-direction:column; gap:8px; }
+  .part-row{
+    display:flex; align-items:center; gap:10px; border:1.5px solid var(--card-line);
+    border-radius:8px; padding:9px 10px; background:#fff;
+  }
+  .part-row.on .stock-tag{ }
+  .part-row input[type=checkbox]{ width:18px; height:18px; flex:0 0 auto; accent-color:var(--rust); }
+  .part-row .pname{ flex:1; font-size:13.5px; }
+  .part-row .stock-tag{ font-size:10.5px; color:var(--ink-soft); }
+  .part-row .stock-tag.low{ color:var(--ochre-dark); font-weight:600; }
+  .qty-stepper{ display:flex; align-items:center; gap:6px; }
+  .qty-stepper button{
+    width:26px; height:26px; border-radius:6px; border:1px solid var(--card-line); background:var(--canvas);
+    font-size:15px; line-height:1; cursor:pointer;
+  }
+  .qty-stepper input{ width:34px; text-align:center; padding:5px 2px; font-size:13px; }
+  .no-parts-note{ font-size:12.5px; color:var(--ink-soft); padding:8px 2px; }
+
+  .status-toggle{ display:flex; gap:8px; }
+  .status-toggle .chip-option{ flex:1; }
+
+  .damage-flag{
+    margin-top:10px; display:flex; align-items:flex-start; gap:9px; background:rgba(124,46,21,0.07);
+    border:1px solid rgba(124,46,21,0.25); border-radius:8px; padding:10px 11px;
+  }
+  .damage-flag input{ margin-top:2px; width:17px; height:17px; accent-color:var(--rust-dark); }
+  .damage-flag .txt{ font-size:12.5px; line-height:1.45; color:var(--rust-dark); }
+  .damage-flag .txt b{ display:block; font-size:13px; margin-bottom:2px; }
+
+  .field-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:5px; }
+  .required-mark{ color:var(--rust); }
+
+  /* recent log */
+  .log-list{ display:flex; flex-direction:column; gap:8px; }
+  .log-item{
+    background:var(--card); border:1px solid var(--card-line); border-radius:9px; padding:10px 12px;
+    font-size:12.5px;
+  }
+  .log-item .row1{ display:flex; justify-content:space-between; gap:8px; }
+  .log-item .lid{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
+  .log-item .wtype{ color:var(--ink-soft); }
+  .log-item .desc{ margin-top:4px; color:var(--ink-soft); line-height:1.4; }
+  .log-item .row2{ margin-top:6px; display:flex; justify-content:space-between; color:var(--ink-soft); font-size:11px; }
+
+  /* toast */
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#F4E9D8; padding:13px 18px; border-radius:10px;
+    box-shadow:0 8px 22px rgba(0,0,0,0.35); font-size:13.5px; max-width:90vw;
+    opacity:0; pointer-events:none; transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:80; display:flex; align-items:center; gap:10px;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast .stamp{ font-family:'IBM Plex Mono', monospace; background:var(--rust); padding:3px 7px; border-radius:5px; font-size:11px; }
+
+  /* scan modal */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(36,31,26,0.62); display:none;
+    align-items:center; justify-content:center; z-index:90; padding:20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal-card{
+    background:var(--card); border-radius:14px; padding:18px; width:100%; max-width:380px;
+    box-shadow:0 12px 34px rgba(0,0,0,0.4);
+  }
+  .modal-card h3{ font-size:16px; text-transform:uppercase; margin-bottom:10px; }
+  .scan-video-wrap{
+    background:#000; border-radius:10px; overflow:hidden; aspect-ratio:1/1; position:relative;
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+  }
+  .scan-video-wrap video{ width:100%; height:100%; object-fit:cover; }
+  .scan-frame{
+    position:absolute; inset:14%; border:2.5px solid #F4E9D8; border-radius:10px; opacity:0.85;
+  }
+  .scan-fallback{ color:#F4E9D8; font-size:12.5px; text-align:center; padding:0 18px; line-height:1.5; }
+  .modal-actions{ display:flex; gap:8px; margin-top:4px; }
+
+  footer.credit{
+    text-align:center; font-size:11px; color:var(--ink-soft); padding:22px 20px 10px; line-height:1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .toast{ transition:none; }
+  }
+
+  @media (min-width:520px){
+    .login-screen{ padding-top:80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="loginScreen" class="login-screen">
+  <div class="tag-header" style="border-radius:12px; margin-bottom:22px;">
+    <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
+    <div class="eyebrow">Ngapori Ranch</div>
+    <h1>RAMS</h1>
+    <div class="sub">Field Maintenance Portal</div>
+  </div>
+  <div class="login-card">
+    <h2>Clock In</h2>
+    <div class="lead">Pick your name and enter your 4-digit PIN to log work against the ranch's assets.</div>
+    <div class="field">
+      <label for="loginUser">Username</label>
+      <select id="loginUser"></select>
     </div>
+    <div class="field">
+      <label for="loginPin">PIN</label>
+      <input type="password" id="loginPin" inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="••••" class="pin-dots">
+    </div>
+    <button class="btn btn-primary" id="loginBtn">Clock In</button>
+    <div class="error-text" id="loginError">That PIN doesn't match this user. Try again.</div>
+  </div>
+  <footer class="credit">Connects to the ASSET_REGISTRY, MAINTENANCE_LOG, PARTS_INVENTORY, USERS and SETTINGS sheets in Ngapori_RAMS_v2.</footer>
+</div>
 
-    <script>
-      var activeUser = null;
+<!-- ======================= APP ======================= -->
+<div id="app">
+  <div class="tag-header">
+    <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
+    <div class="eyebrow">Ngapori Ranch</div>
+    <h1>RAMS</h1>
+    <div class="sub">Field Maintenance Portal</div>
+    <div class="user-chip">
+      <div class="who">Logged in: <b id="userName">—</b><span class="role-badge" id="userRole">—</span></div>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </div>
 
-      function login() {
-        var u = document.getElementById('username').value.trim();
-        var p = document.getElementById('pin').value.trim();
+  <div class="wrap">
+    <!-- KPI strip -->
+    <div class="kpi-strip" id="kpiStrip"></div>
 
-        google.script.run
-          .withSuccessHandler(function (user) {
-            if (user) {
-              activeUser = user;
-              document.getElementById('loginSection').classList.add('hidden');
+    <!-- Quick actions -->
+    <section>
+      <div class="section-title">Quick Actions</div>
+      <div class="quick-actions">
+        <button class="btn btn-secondary" id="scanBtn"><span class="icon">▤</span> Scan Asset QR Code</button>
+        <button class="btn btn-secondary" id="lookupBtn"><span class="icon">☰</span> Manual Asset Lookup</button>
+      </div>
+      <div class="asset-list" id="assetLookupList" style="display:none; margin-top:10px;"></div>
+    </section>
 
-              if (user.role === "Executive") {
-                document.getElementById('founderSection').classList.remove('hidden');
-                document.getElementById('founderBadge').innerText = "Logged in: " + user.name + " (Founder)";
-                loadDashboardMetrics();
-              } else {
-                document.getElementById('workerSection').classList.remove('hidden');
-                document.getElementById('workerBadge').innerText = "Logged in: " + user.name + " (" + user.role + ")";
-              }
-            } else {
-              document.getElementById('loginError').classList.remove('hidden');
-            }
-          })
-          .withFailureHandler(function () {
-            document.getElementById('loginError').classList.remove('hidden');
-          })
-          .authenticateUser(u, p);
+    <!-- Selected asset -->
+    <section>
+      <div class="section-title">Selected Asset</div>
+      <div id="assetPlateHolder">
+        <div class="empty-plate">No asset selected yet. Scan a QR code or use Manual Asset Lookup to choose one.</div>
+      </div>
+    </section>
+
+    <!-- Work order form -->
+    <section>
+      <div class="section-title">Log Work Order</div>
+      <div class="form-card">
+        <div class="field">
+          <label>Work Type <span class="required-mark">*</span></label>
+          <div class="work-type-grid" id="workTypeGrid"></div>
+        </div>
+
+        <div class="field">
+          <label for="descriptionInput">Description <span class="required-mark">*</span></label>
+          <textarea id="descriptionInput" placeholder="What did you find or do? Be specific — this becomes the permanent audit record."></textarea>
+        </div>
+
+        <div class="field">
+          <label>Parts Used</label>
+          <div class="parts-list" id="partsList"></div>
+        </div>
+
+        <div class="field">
+          <label for="costInput">Cost (USD)</label>
+          <input type="number" id="costInput" min="0" step="0.01" value="0.00">
+        </div>
+
+        <div class="field">
+          <label>Work Status <span class="required-mark">*</span></label>
+          <div class="status-toggle" id="statusToggle"></div>
+        </div>
+
+        <div class="damage-flag" id="damageFlagRow" style="display:none;">
+          <input type="checkbox" id="markOutOfOrder">
+          <label for="markOutOfOrder" class="txt">
+            <b>Mark asset Out of Order</b>
+            Updates ASSET_REGISTRY immediately and pulls this asset off the operational count on the dashboard.
+          </label>
+        </div>
+
+        <div class="field-hint" style="margin-top:14px; margin-bottom:10px;">
+          On submit, RAMS stamps the Log ID, timestamp, your name and role automatically.
+        </div>
+        <button class="btn btn-primary" id="submitBtn" disabled>Submit Work Order</button>
+      </div>
+    </section>
+
+    <!-- Recent log -->
+    <section>
+      <div class="section-title">Recent Entries</div>
+      <div class="log-list" id="recentLog"></div>
+    </section>
+
+    <footer class="credit" id="modeFooter">—</footer>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="stamp" id="toastStamp">LOG-0000</span>
+  <span id="toastMsg">Work order logged.</span>
+</div>
+
+<!-- QR Scan modal -->
+<div class="modal-backdrop" id="scanModal">
+  <div class="modal-card">
+    <h3>Scan Asset QR Code</h3>
+    <div class="scan-video-wrap" id="scanVideoWrap">
+      <div class="scan-fallback" id="scanFallback">Starting camera…</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="scanCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  /* =========================================================================
+     DATA LAYER
+     — When this file is served by Apps Script (HtmlService), window.google.script.run
+       talks to Code.gs, which reads/writes the live Ngapori_RAMS_v2 sheet.
+     — When opened directly as a plain HTML file (e.g. for preview), it falls back to
+       an in-memory demo mode seeded with the same sample data as the workbook, so the
+       whole flow is still click-through-able without a deployment.
+  ========================================================================= */
+
+  var HAS_BACKEND = (typeof google !== 'undefined' && google.script && google.script.run);
+
+  var DEMO = {
+    settings: {
+      statusOptions: ['Operational', 'Needs Service', 'Out of Order'],
+      categoryOptions: ['Vehicle', 'Machinery', 'Structure', 'Irrigation', 'Fencing', 'Tool', 'Other'],
+      workTypes: ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'],
+      roles: ['Ranch Worker', 'Ranch Manager', 'Executive'],
+      defaultServiceIntervalDays: 90,
+      lowStockMultiplier: 1,
+      overdueGraceDays: 0
+    },
+    users: [
+      { username: 'worker1', pin: '1234', displayName: 'J. Doe', role: 'Ranch Worker' },
+      { username: 'worker2', pin: '1234', displayName: 'R. Smith', role: 'Ranch Worker' },
+      { username: 'manager1', pin: '5678', displayName: 'M. Vance', role: 'Ranch Manager' },
+      { username: 'founder', pin: '9999', displayName: 'Founder', role: 'Executive' }
+    ],
+    assets: [
+      { assetId: 'TRAC-01', assetName: 'John Deere 5075E Tractor', category: 'Vehicle', location: 'Equipment Yard', status: 'Operational', serviceIntervalDays: 90, lastServiced: '2026-06-01', nextServiceDue: '2026-08-30', purchasePrice: 55000 }
+    ],
+    parts: [
+      { name: 'Tractor Oil Filter', onHand: 6, minimum: 2, status: 'OK' }
+    ]
+  };
+
+  var demoLogIdSeq = 1001;
+  var demoLog = [
+    { logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', role: 'Ranch Worker', cost: 0, status: 'Completed' }
+  ];
+
+  function backendGetInitialData(cb){
+    if (HAS_BACKEND){
+      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
+        showToast('Load failed', 'Could not reach the sheet: ' + (err && err.message ? err.message : err));
+      }).getInitialData();
+    } else {
+      setTimeout(function(){ cb({ users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings }); }, 120);
+    }
+  }
+
+  function backendAuthenticate(username, pin, cb){
+    if (HAS_BACKEND){
+      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
+        showToast('Sign-in failed', String(err));
+      }).authenticate(username, pin);
+    } else {
+      var match = DEMO.users.find(function(u){ return u.username === username && u.pin === pin; });
+      setTimeout(function(){ cb(match ? { username: match.username, displayName: match.displayName, role: match.role } : null); }, 150);
+    }
+  }
+
+  function backendSubmitLogEntry(entry, cb){
+    if (HAS_BACKEND){
+      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
+        showToast('Submit failed', String(err));
+      }).submitLogEntry(entry);
+    } else {
+      demoLogIdSeq += 1;
+      var logId = 'LOG-' + demoLogIdSeq;
+      var ts = new Date();
+      demoLog.unshift({
+        logId: logId, timestamp: ts.toISOString(), assetId: entry.assetId, workType: entry.workType,
+        description: entry.description, reportedBy: entry.reportedBy, role: entry.role,
+        cost: Number(entry.cost) || 0, status: entry.status
+      });
+      (entry.parts || []).forEach(function(p){
+        var part = DEMO.parts.find(function(x){ return x.name === p.name; });
+        if (part){
+          part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
+          part.status = (part.onHand <= part.minimum * DEMO.settings.lowStockMultiplier) ? 'LOW' : 'OK';
+        }
+      });
+      if (entry.markOutOfOrder){
+        var asset = DEMO.assets.find(function(a){ return a.assetId === entry.assetId; });
+        if (asset) asset.status = 'Out of Order';
       }
+      setTimeout(function(){ cb({ logId: logId, timestamp: ts.toISOString(), data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } }); }, 180);
+    }
+  }
 
-      function submitWorkerReport() {
-        var btn = document.getElementById('submitWorkerBtn');
-        btn.disabled = true;
-        btn.innerText = "Signing & Submitting...";
+  /* =========================================================================
+     STATE
+  ========================================================================= */
 
-        var payload = {
-          username: activeUser.name,
-          role: activeUser.role,
-          assetId: document.getElementById('assetId').value,
-          workType: document.getElementById('workType').value,
-          description: document.getElementById('description').value
-        };
+  var state = {
+    settings: null,
+    users: [],
+    assets: [],
+    parts: [],
+    currentUser: null,
+    selectedAsset: null,
+    workType: null,
+    workStatus: null,
+    selectedParts: {}   // { partName: qty }
+  };
 
-        google.script.run
-          .withSuccessHandler(function () {
-            document.getElementById('ramsWorkerForm').reset();
-            var msg = document.getElementById('workerMsg');
-            msg.className = "alert success";
-            msg.innerText = "Report signed & logged to RAMS!";
-            msg.classList.remove('hidden');
-            btn.disabled = false;
-            btn.innerText = "Submit Signed Report";
-            setTimeout(function () { msg.classList.add('hidden'); }, 4000);
-          })
-          .withFailureHandler(function (err) {
-            var msg = document.getElementById('workerMsg');
-            msg.className = "alert error";
-            msg.innerText = "Submission failed: " + err.message;
-            msg.classList.remove('hidden');
-            btn.disabled = false;
-            btn.innerText = "Submit Signed Report";
-          })
-          .processSignedFieldReport(payload);
+  /* =========================================================================
+     LOGIN
+  ========================================================================= */
+
+  var loginUserSel = document.getElementById('loginUser');
+  var loginPinInput = document.getElementById('loginPin');
+  var loginBtn = document.getElementById('loginBtn');
+  var loginError = document.getElementById('loginError');
+
+  function populateLoginUsers(){
+    loginUserSel.innerHTML = '';
+    state.users.forEach(function(u){
+      var opt = document.createElement('option');
+      opt.value = u.username;
+      opt.textContent = u.displayName + ' — ' + u.role;
+      loginUserSel.appendChild(opt);
+    });
+  }
+
+  loginBtn.addEventListener('click', function(){
+    var username = loginUserSel.value;
+    var pin = loginPinInput.value.trim();
+    if (!username || pin.length < 4){
+      loginError.textContent = 'Enter your 4-digit PIN.';
+      loginError.classList.add('show');
+      return;
+    }
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Checking…';
+    backendAuthenticate(username, pin, function(user){
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Clock In';
+      if (!user){
+        loginError.textContent = "That PIN doesn't match this user. Try again.";
+        loginError.classList.add('show');
+        return;
       }
+      loginError.classList.remove('show');
+      state.currentUser = user;
+      enterApp();
+    });
+  });
 
-      function loadDashboardMetrics() {
-        google.script.run
-          .withSuccessHandler(function (kpis) {
-            document.getElementById('kpiOps').innerText = kpis.operational;
-            document.getElementById('kpiOoo').innerText = kpis.outOfOrder;
-            document.getElementById('kpiOverdue').innerText = kpis.overdueService;
-            document.getElementById('kpiLowParts').innerText = kpis.lowPartsAlerts;
-            document.getElementById('kpiBasis').innerText = "$" + Number(kpis.assetBasis).toLocaleString();
-            document.getElementById('kpiCapex').innerText = "$" + Number(kpis.plannedCapex).toLocaleString();
-          })
-          .getDashboardData();
-      }
-    </script>
-  </body>
+  loginPinInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') loginBtn.click(); });
+
+  function enterApp(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('userName').textContent = state.currentUser.displayName;
+    document.getElementById('userRole').textContent = state.currentUser.role;
+    document.getElementById('modeFooter').textContent = HAS_BACKEND
+      ? 'Connected to the live Ngapori_RAMS_v2 sheet.'
+      : 'Preview mode — running on sample data, not yet connected to the live sheet.';
+    renderAll();
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', function(){
+    state.currentUser = null;
+    resetForm();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+    loginPinInput.value = '';
+  });
+
+  /* =========================================================================
+     KPI STRIP
+  ========================================================================= */
+
+  function computeKpis(){
+    var assets = state.assets;
+    var operational = assets.filter(function(a){ return a.status === 'Operational'; }).length;
+    var needsService = assets.filter(function(a){ return a.status === 'Needs Service'; }).length;
+    var outOfOrder = assets.filter(function(a){ return a.status === 'Out of Order'; }).length;
+    var total = assets.length;
+
+    var grace = Number(state.settings.overdueGraceDays) || 0;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var overdue = assets.filter(function(a){
+      if (!a.nextServiceDue) return false;
+      var due = new Date(a.nextServiceDue);
+      var threshold = new Date(today); threshold.setDate(threshold.getDate() - grace);
+      return due < threshold;
+    }).length;
+
+    var lowParts = state.parts.filter(function(p){ return p.status === 'LOW'; }).length;
+    var assetBasis = assets.reduce(function(sum, a){ return sum + (Number(a.purchasePrice) || 0); }, 0);
+
+    return { operational: operational, needsService: needsService, outOfOrder: outOfOrder, total: total, overdue: overdue, lowParts: lowParts, assetBasis: assetBasis };
+  }
+
+  function fmtMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+
+  function renderKpis(){
+    var k = computeKpis();
+    var cards = [
+      { num: k.operational, lbl: 'Operational', cls: 'good' },
+      { num: k.needsService, lbl: 'Needs Service', cls: k.needsService > 0 ? 'warn' : '' },
+      { num: k.outOfOrder, lbl: 'Out of Order', cls: k.outOfOrder > 0 ? 'danger' : '' },
+      { num: k.total, lbl: 'Total Assets', cls: '' },
+      { num: k.overdue, lbl: 'Overdue Service', cls: k.overdue > 0 ? 'danger' : '' },
+      { num: k.lowParts, lbl: 'Low Parts Alerts', cls: k.lowParts > 0 ? 'warn' : '' },
+      { num: fmtMoney(k.assetBasis), lbl: 'Total Asset Basis', cls: '' }
+    ];
+    var strip = document.getElementById('kpiStrip');
+    strip.innerHTML = '';
+    cards.forEach(function(c){
+      var el = document.createElement('div');
+      el.className = 'kpi-card ' + c.cls;
+      el.innerHTML = '<div class="num">' + c.num + '</div><div class="lbl">' + c.lbl + '</div>';
+      strip.appendChild(el);
+    });
+  }
+
+  /* =========================================================================
+     ASSET LOOKUP + SELECTION
+  ========================================================================= */
+
+  var lookupBtn = document.getElementById('lookupBtn');
+  var lookupList = document.getElementById('assetLookupList');
+
+  lookupBtn.addEventListener('click', function(){
+    var open = lookupList.style.display !== 'none';
+    lookupList.style.display = open ? 'none' : 'block';
+    if (!open) renderAssetLookup();
+  });
+
+  function renderAssetLookup(){
+    lookupList.innerHTML = '';
+    if (!state.assets.length){
+      lookupList.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No assets in ASSET_REGISTRY yet.</div>';
+      return;
+    }
+    state.assets.forEach(function(a){
+      var row = document.createElement('button');
+      row.className = 'asset-row';
+      row.innerHTML = '<span><span class="aid">' + a.assetId + '</span><br><span class="aname">' + a.assetName + ' · ' + a.location + '</span></span>' +
+        statusBadgeHtml(a.status);
+      row.addEventListener('click', function(){
+        selectAsset(a.assetId);
+        lookupList.style.display = 'none';
+      });
+      lookupList.appendChild(row);
+    });
+  }
+
+  function statusBadgeHtml(status){
+    var cls = status === 'Operational' ? 'op' : status === 'Needs Service' ? 'need' : 'down';
+    return '<span class="status-badge ' + cls + '">' + status + '</span>';
+  }
+
+  function selectAsset(assetId){
+    var asset = state.assets.find(function(a){ return a.assetId === assetId; });
+    state.selectedAsset = asset || null;
+    renderAssetPlate();
+    updateSubmitState();
+  }
+
+  function renderAssetPlate(){
+    var holder = document.getElementById('assetPlateHolder');
+    if (!state.selectedAsset){
+      holder.innerHTML = '<div class="empty-plate">No asset selected yet. Scan a QR code or use Manual Asset Lookup to choose one.</div>';
+      return;
+    }
+    var a = state.selectedAsset;
+    holder.innerHTML =
+      '<div class="asset-plate">' +
+        '<span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>' +
+        '<div class="top-row">' +
+          '<div><div class="asset-id mono">' + a.assetId + '</div><div class="asset-name">' + a.assetName + '</div></div>' +
+          statusBadgeHtml(a.status) +
+        '</div>' +
+        '<div class="meta-row">' +
+          '<div><div class="k">Category</div><div class="v">' + a.category + '</div></div>' +
+          '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
+          '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
+          '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* =========================================================================
+     QR SCAN
+  ========================================================================= */
+
+  var scanBtn = document.getElementById('scanBtn');
+  var scanModal = document.getElementById('scanModal');
+  var scanVideoWrap = document.getElementById('scanVideoWrap');
+  var scanFallback = document.getElementById('scanFallback');
+  var scanCancelBtn = document.getElementById('scanCancelBtn');
+  var scanStream = null, scanDetectTimer = null;
+
+  scanBtn.addEventListener('click', openScanModal);
+  scanCancelBtn.addEventListener('click', closeScanModal);
+
+  function openScanModal(){
+    scanModal.classList.add('show');
+    startScan();
+  }
+  function closeScanModal(){
+    scanModal.classList.remove('show');
+    stopScan();
+  }
+
+  function startScan(){
+    scanVideoWrap.innerHTML = '<div class="scan-fallback" id="scanFallback">Starting camera…</div>';
+    if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showScanFallback();
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream){
+      scanStream = stream;
+      var video = document.createElement('video');
+      video.setAttribute('playsinline', '');
+      video.autoplay = true;
+      video.srcObject = stream;
+      scanVideoWrap.innerHTML = '';
+      scanVideoWrap.appendChild(video);
+      var frame = document.createElement('div');
+      frame.className = 'scan-frame';
+      scanVideoWrap.appendChild(frame);
+
+      var detector = new BarcodeDetector({ formats: ['qr_code'] });
+      scanDetectTimer = setInterval(function(){
+        detector.detect(video).then(function(codes){
+          if (codes && codes.length){
+            handleScannedValue(codes[0].rawValue);
+          }
+        }).catch(function(){ /* frame not ready yet — ignore */ });
+      }, 400);
+    }).catch(function(){
+      showScanFallback();
+    });
+  }
+
+  function showScanFallback(){
+    scanVideoWrap.innerHTML = '<div class="scan-fallback">Camera scanning isn\'t available on this device or browser.<br><br>Use <b>Manual Asset Lookup</b> instead.</div>';
+  }
+
+  function stopScan(){
+    if (scanDetectTimer){ clearInterval(scanDetectTimer); scanDetectTimer = null; }
+    if (scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
+  }
+
+  function handleScannedValue(raw){
+    var assetId = raw;
+    try {
+      var url = new URL(raw);
+      var param = url.searchParams.get('asset_id');
+      if (param) assetId = param;
+    } catch (e){ /* raw value wasn't a URL — use it as-is */ }
+
+    var match = state.assets.find(function(a){ return a.assetId === assetId; });
+    closeScanModal();
+    if (match){
+      selectAsset(match.assetId);
+      showToast(match.assetId, 'Asset loaded from QR scan.');
+    } else {
+      showToast('Not found', 'No asset "' + assetId + '" in ASSET_REGISTRY — try Manual Lookup.');
+    }
+  }
+
+  /* =========================================================================
+     WORK ORDER FORM
+  ========================================================================= */
+
+  function renderWorkTypeGrid(){
+    var grid = document.getElementById('workTypeGrid');
+    grid.innerHTML = '';
+    state.settings.workTypes.forEach(function(wt){
+      var chip = document.createElement('div');
+      chip.className = 'chip-option';
+      chip.textContent = wt;
+      chip.tabIndex = 0;
+      chip.addEventListener('click', function(){ selectWorkType(wt); });
+      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkType(wt); } });
+      grid.appendChild(chip);
+    });
+  }
+
+  function selectWorkType(wt){
+    state.workType = wt;
+    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){
+      chip.classList.toggle('selected', chip.textContent === wt);
+    });
+    var isDamage = wt === 'Damage / Repair Needed';
+    document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
+    if (!isDamage) document.getElementById('markOutOfOrder').checked = false;
+    updateSubmitState();
+  }
+
+  function renderStatusToggle(){
+    var wrap = document.getElementById('statusToggle');
+    wrap.innerHTML = '';
+    ['Completed', 'Open / Needs Follow-up'].forEach(function(s){
+      var chip = document.createElement('div');
+      chip.className = 'chip-option';
+      chip.textContent = s;
+      chip.tabIndex = 0;
+      chip.addEventListener('click', function(){ selectWorkStatus(s); });
+      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkStatus(s); } });
+      wrap.appendChild(chip);
+    });
+    selectWorkStatus('Completed');
+  }
+
+  function selectWorkStatus(s){
+    state.workStatus = s;
+    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){
+      chip.classList.toggle('selected', chip.textContent === s);
+    });
+  }
+
+  function renderPartsList(){
+    var wrap = document.getElementById('partsList');
+    wrap.innerHTML = '';
+    if (!state.parts.length){
+      wrap.innerHTML = '<div class="no-parts-note">No parts in PARTS_INVENTORY yet.</div>';
+      return;
+    }
+    state.parts.forEach(function(p){
+      var row = document.createElement('div');
+      row.className = 'part-row';
+      var low = p.status === 'LOW';
+      row.innerHTML =
+        '<input type="checkbox" id="part-' + cssSafe(p.name) + '">' +
+        '<span class="pname">' + p.name + '<br><span class="stock-tag ' + (low ? 'low' : '') + '">' + p.onHand + ' on hand' + (low ? ' · LOW' : '') + '</span></span>' +
+        '<div class="qty-stepper" style="visibility:hidden;">' +
+          '<button type="button" class="qty-minus">−</button>' +
+          '<input type="number" min="1" value="1" class="qty-input">' +
+          '<button type="button" class="qty-plus">+</button>' +
+        '</div>';
+      var checkbox = row.querySelector('input[type=checkbox]');
+      var stepper = row.querySelector('.qty-stepper');
+      var qtyInput = row.querySelector('.qty-input');
+      checkbox.addEventListener('change', function(){
+        stepper.style.visibility = checkbox.checked ? 'visible' : 'hidden';
+        if (checkbox.checked) state.selectedParts[p.name] = Number(qtyInput.value) || 1;
+        else delete state.selectedParts[p.name];
+      });
+      row.querySelector('.qty-minus').addEventListener('click', function(){
+        qtyInput.value = Math.max(1, (Number(qtyInput.value) || 1) - 1);
+        state.selectedParts[p.name] = Number(qtyInput.value);
+      });
+      row.querySelector('.qty-plus').addEventListener('click', function(){
+        qtyInput.value = (Number(qtyInput.value) || 1) + 1;
+        state.selectedParts[p.name] = Number(qtyInput.value);
+      });
+      qtyInput.addEventListener('input', function(){
+        if (checkbox.checked) state.selectedParts[p.name] = Math.max(1, Number(qtyInput.value) || 1);
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function cssSafe(s){ return s.replace(/[^a-z0-9]/gi, '-'); }
+
+  var descriptionInput = document.getElementById('descriptionInput');
+  descriptionInput.addEventListener('input', updateSubmitState);
+
+  function updateSubmitState(){
+    var ok = state.selectedAsset && state.workType && descriptionInput.value.trim().length > 0;
+    document.getElementById('submitBtn').disabled = !ok;
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', submitWorkOrder);
+
+  function submitWorkOrder(){
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    var partsPayload = Object.keys(state.selectedParts).map(function(name){
+      return { name: name, quantity: state.selectedParts[name] };
+    });
+
+    var entry = {
+      assetId: state.selectedAsset.assetId,
+      workType: state.workType,
+      description: descriptionInput.value.trim(),
+      reportedBy: state.currentUser.displayName,
+      role: state.currentUser.role,
+      cost: document.getElementById('costInput').value || 0,
+      status: state.workStatus,
+      parts: partsPayload,
+      markOutOfOrder: document.getElementById('markOutOfOrder').checked
+    };
+
+    backendSubmitLogEntry(entry, function(result){
+      btn.textContent = 'Submit Work Order';
+      if (!result){ btn.disabled = false; return; }
+      state.assets = result.data.assets;
+      state.parts = result.data.parts;
+      var reselect = state.assets.find(function(a){ return a.assetId === entry.assetId; });
+      state.selectedAsset = reselect || null;
+
+      showToast(result.logId, 'Work order logged for ' + entry.assetId + '.');
+      prependLocalLogEntry(result.logId, result.timestamp, entry);
+      renderKpis();
+      renderAssetPlate();
+      resetForm(true);
+    });
+  }
+
+  var localRecentLog = [];
+  function prependLocalLogEntry(logId, timestamp, entry){
+    localRecentLog.unshift({ logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType, description: entry.description, reportedBy: entry.reportedBy, cost: entry.cost, status: entry.status });
+    renderRecentLog();
+  }
+
+  function renderRecentLog(){
+    var list = document.getElementById('recentLog');
+    var seed = [{ logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', cost: 0, status: 'Completed' }];
+    var items = localRecentLog.concat(seed).slice(0, 6);
+    list.innerHTML = '';
+    items.forEach(function(entry){
+      var el = document.createElement('div');
+      el.className = 'log-item';
+      var when = new Date(entry.timestamp);
+      var whenStr = isNaN(when.getTime()) ? entry.timestamp : when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      el.innerHTML =
+        '<div class="row1"><span class="lid">' + entry.logId + '</span><span class="wtype">' + entry.workType + '</span></div>' +
+        '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
+        '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + '</span><span>' + whenStr + '</span></div>';
+      list.appendChild(el);
+    });
+  }
+
+  function escapeHtml(s){
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function resetForm(keepAsset){
+    if (!keepAsset){ state.selectedAsset = null; renderAssetPlate(); }
+    state.workType = null;
+    state.selectedParts = {};
+    descriptionInput.value = '';
+    document.getElementById('costInput').value = '0.00';
+    document.getElementById('markOutOfOrder').checked = false;
+    document.getElementById('damageFlagRow').style.display = 'none';
+    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); });
+    renderPartsList();
+    selectWorkStatus('Completed');
+    updateSubmitState();
+  }
+
+  /* =========================================================================
+     TOAST
+  ========================================================================= */
+
+  var toastTimer = null;
+  function showToast(stamp, msg){
+    var toast = document.getElementById('toast');
+    document.getElementById('toastStamp').textContent = stamp;
+    document.getElementById('toastMsg').textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 3800);
+  }
+
+  /* =========================================================================
+     BOOT
+  ========================================================================= */
+
+  function renderAll(){
+    renderKpis();
+    renderWorkTypeGrid();
+    renderStatusToggle();
+    renderPartsList();
+    renderAssetPlate();
+    renderRecentLog();
+    updateSubmitState();
+  }
+
+  backendGetInitialData(function(data){
+    state.settings = data.settings;
+    state.users = data.users;
+    state.assets = data.assets;
+    state.parts = data.parts;
+    populateLoginUsers();
+  });
+
+})();
+</script>
+</body>
 </html>
