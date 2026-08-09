@@ -376,7 +376,15 @@
         <button class="btn btn-secondary" id="lookupBtn"><span class="icon">☰</span> Manual Asset Lookup</button>
       </div>
       <button class="btn btn-secondary" id="registerBtn" style="margin-top:8px;"><span class="icon">+</span> Register New Asset</button>
-      <div class="asset-list" id="assetLookupList" style="display:none; margin-top:10px;"></div>
+      <div id="assetLookupPanel" style="display:none; margin-top:10px;">
+        <div class="asset-search">
+          <input type="text" id="assetSearchInput" placeholder="Search by name or ID…">
+        </div>
+        <div class="field" style="margin-bottom:8px;">
+          <select id="assetCategoryFilter"></select>
+        </div>
+        <div class="asset-list" id="assetLookupList"></div>
+      </div>
     </section>
 
     <!-- Selected asset -->
@@ -414,6 +422,12 @@
         <div class="field">
           <label>Work Status <span class="required-mark">*</span></label>
           <div class="status-toggle" id="statusToggle"></div>
+        </div>
+
+        <div class="field">
+          <label>Serviced By <span class="required-mark">*</span></label>
+          <div class="status-toggle" id="servicedByToggle"></div>
+          <input type="text" id="vendorNameInput" placeholder="Vendor / shop name" style="display:none; margin-top:8px;">
         </div>
 
         <div class="damage-flag" id="damageFlagRow" style="display:none;">
@@ -466,8 +480,11 @@
     <h3>Register New Asset</h3>
     <div class="field">
       <label for="regAssetId">Ranch Asset ID <span class="required-mark">*</span></label>
-      <input type="text" id="regAssetId" placeholder="e.g. TRAC-02">
-      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it.</div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="regAssetId" placeholder="e.g. TRAC-02" style="flex:1;">
+        <button type="button" class="btn btn-secondary" id="regAutoIdBtn" style="width:auto; padding:0 14px; white-space:nowrap;">Auto-Generate</button>
+      </div>
+      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it. Auto-Generate suggests the next ID for the chosen category based on the live sheet.</div>
     </div>
     <div class="field">
       <label for="regAssetName">Asset Name <span class="required-mark">*</span></label>
@@ -476,6 +493,10 @@
     <div class="field">
       <label for="regCategory">Category <span class="required-mark">*</span></label>
       <select id="regCategory"></select>
+    </div>
+    <div class="field">
+      <label for="regManufacturer">Manufacturer</label>
+      <input type="text" id="regManufacturer" placeholder="e.g. John Deere, Kubota, Case IH">
     </div>
     <div class="field">
       <label for="regLocation">Location</label>
@@ -581,6 +602,27 @@
     }
   }
 
+  function backendSuggestAssetId(category, cb){
+    if (HAS_BACKEND){
+      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
+        showToast('Couldn\'t suggest ID', String(err));
+      }).suggestNextAssetId(category);
+    } else {
+      var prefixMap = { Vehicle: 'VEH', Machinery: 'MACH', Structure: 'STRUC', Irrigation: 'IRR', Fencing: 'FNC', Tool: 'TL', Other: 'AST' };
+      var prefix = prefixMap[category] || 'AST';
+      var maxNum = 0;
+      DEMO.assets.forEach(function(a){
+        var m = a.assetId.match(/^([A-Za-z]+)-(\d+)$/);
+        if (m && m[1].toUpperCase() === prefix){
+          var n = parseInt(m[2], 10);
+          if (!isNaN(n) && n > maxNum) maxNum = n;
+        }
+      });
+      var next = maxNum + 1;
+      setTimeout(function(){ cb(prefix + '-' + (next < 10 ? '0' + next : next)); }, 120);
+    }
+  }
+
   function backendRegisterAsset(data, cb, errCb){
     if (HAS_BACKEND){
       google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
@@ -595,6 +637,7 @@
           status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
           lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
           identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || '',
+          manufacturer: data.manufacturer || '', dateCreated: new Date().toISOString().slice(0, 10),
           photoUrls: (data.photos || []).map(function(_, i){ return 'demo://photo-' + (i + 1); }).join(', ')
         });
         cb({ assetId: data.assetId, data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } });
@@ -765,28 +808,58 @@
   ========================================================================= */
 
   var lookupBtn = document.getElementById('lookupBtn');
+  var lookupPanel = document.getElementById('assetLookupPanel');
   var lookupList = document.getElementById('assetLookupList');
+  var assetSearchInput = document.getElementById('assetSearchInput');
+  var assetCategoryFilter = document.getElementById('assetCategoryFilter');
 
   lookupBtn.addEventListener('click', function(){
-    var open = lookupList.style.display !== 'none';
-    lookupList.style.display = open ? 'none' : 'block';
+    var open = lookupPanel.style.display !== 'none';
+    lookupPanel.style.display = open ? 'none' : 'block';
     if (!open) renderAssetLookup();
   });
 
+  assetSearchInput.addEventListener('input', renderAssetLookup);
+  assetCategoryFilter.addEventListener('change', renderAssetLookup);
+
+  function populateAssetCategoryFilter(){
+    assetCategoryFilter.innerHTML = '';
+    var allOpt = document.createElement('option');
+    allOpt.value = ''; allOpt.textContent = 'All Categories';
+    assetCategoryFilter.appendChild(allOpt);
+    state.settings.categoryOptions.forEach(function(c){
+      var opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      assetCategoryFilter.appendChild(opt);
+    });
+  }
+
   function renderAssetLookup(){
+    var query = assetSearchInput.value.trim().toLowerCase();
+    var category = assetCategoryFilter.value;
+    var filtered = state.assets.filter(function(a){
+      var matchesQuery = !query || a.assetName.toLowerCase().indexOf(query) !== -1 || a.assetId.toLowerCase().indexOf(query) !== -1;
+      var matchesCategory = !category || a.category === category;
+      return matchesQuery && matchesCategory;
+    });
+
     lookupList.innerHTML = '';
     if (!state.assets.length){
       lookupList.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No assets in ASSET_REGISTRY yet.</div>';
       return;
     }
-    state.assets.forEach(function(a){
+    if (!filtered.length){
+      lookupList.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No assets match that search.</div>';
+      return;
+    }
+    filtered.forEach(function(a){
       var row = document.createElement('button');
       row.className = 'asset-row';
       row.innerHTML = '<span><span class="aid">' + a.assetId + '</span><br><span class="aname">' + a.assetName + ' · ' + a.location + '</span></span>' +
         statusBadgeHtml(a.status);
       row.addEventListener('click', function(){
         selectAsset(a.assetId);
-        lookupList.style.display = 'none';
+        lookupPanel.style.display = 'none';
       });
       lookupList.appendChild(row);
     });
@@ -821,6 +894,8 @@
         '<div class="meta-row">' +
           '<div><div class="k">Category</div><div class="v">' + a.category + '</div></div>' +
           '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
+          '<div><div class="k">Manufacturer</div><div class="v">' + (a.manufacturer || '—') + '</div></div>' +
+          '<div><div class="k">Registered</div><div class="v">' + (a.dateCreated || '—') + '</div></div>' +
           '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
           '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
           (a.identifierNumber ? '<div><div class="k">' + (a.identifierType || 'ID') + '</div><div class="v mono" style="font-size:11.5px;">' + a.identifierNumber + '</div></div>' : '') +
@@ -1012,6 +1087,24 @@
   }
   regCategory.addEventListener('change', updateIdentifierLabel);
 
+  document.getElementById('regAutoIdBtn').addEventListener('click', function(){
+    var btn = document.getElementById('regAutoIdBtn');
+    var category = regCategory.value;
+    if (!category){
+      regError.textContent = 'Pick a category first so Auto-Generate knows which prefix to use.';
+      regError.classList.add('show');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '…';
+    backendSuggestAssetId(category, function(suggestedId){
+      btn.disabled = false;
+      btn.textContent = 'Auto-Generate';
+      document.getElementById('regAssetId').value = suggestedId;
+      regError.classList.remove('show');
+    });
+  });
+
   registerBtn.addEventListener('click', function(){
     clearRegisterForm();
     registerModal.classList.add('show');
@@ -1023,6 +1116,7 @@
   function clearRegisterForm(){
     document.getElementById('regAssetId').value = '';
     document.getElementById('regAssetName').value = '';
+    document.getElementById('regManufacturer').value = '';
     document.getElementById('regLocation').value = '';
     regIdNumber.value = '';
     document.getElementById('regServiceInterval').value = state.settings.defaultServiceIntervalDays || 90;
@@ -1052,6 +1146,7 @@
       assetId: assetId,
       assetName: assetName,
       category: regCategory.value,
+      manufacturer: document.getElementById('regManufacturer').value.trim(),
       location: document.getElementById('regLocation').value.trim(),
       identifierType: regIdLabel.textContent,
       identifierNumber: regIdNumber.value.trim(),
@@ -1134,6 +1229,35 @@
     });
   }
 
+  var vendorNameInput = document.getElementById('vendorNameInput');
+
+  function renderServicedByToggle(){
+    var wrap = document.getElementById('servicedByToggle');
+    wrap.innerHTML = '';
+    ['Ranch Crew', 'Vendor / Outside Shop'].forEach(function(s){
+      var chip = document.createElement('div');
+      chip.className = 'chip-option';
+      chip.textContent = s;
+      chip.tabIndex = 0;
+      chip.addEventListener('click', function(){ selectServicedBy(s); });
+      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectServicedBy(s); } });
+      wrap.appendChild(chip);
+    });
+    selectServicedBy('Ranch Crew');
+  }
+
+  function selectServicedBy(s){
+    state.servicedBy = s;
+    Array.from(document.getElementById('servicedByToggle').children).forEach(function(chip){
+      chip.classList.toggle('selected', chip.textContent === s);
+    });
+    var isVendor = s === 'Vendor / Outside Shop';
+    vendorNameInput.style.display = isVendor ? 'block' : 'none';
+    if (!isVendor) vendorNameInput.value = '';
+    updateSubmitState();
+  }
+  vendorNameInput.addEventListener('input', updateSubmitState);
+
   function renderPartsList(){
     var wrap = document.getElementById('partsList');
     wrap.innerHTML = '';
@@ -1182,7 +1306,8 @@
   descriptionInput.addEventListener('input', updateSubmitState);
 
   function updateSubmitState(){
-    var ok = state.selectedAsset && state.workType && descriptionInput.value.trim().length > 0;
+    var vendorOk = state.servicedBy !== 'Vendor / Outside Shop' || vendorNameInput.value.trim().length > 0;
+    var ok = state.selectedAsset && state.workType && descriptionInput.value.trim().length > 0 && vendorOk;
     document.getElementById('submitBtn').disabled = !ok;
   }
 
@@ -1206,7 +1331,9 @@
       cost: document.getElementById('costInput').value || 0,
       status: state.workStatus,
       parts: partsPayload,
-      markOutOfOrder: document.getElementById('markOutOfOrder').checked
+      markOutOfOrder: document.getElementById('markOutOfOrder').checked,
+      serviceLocation: state.servicedBy,
+      vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : ''
     };
 
     backendSubmitLogEntry(entry, function(result){
@@ -1266,6 +1393,7 @@
     Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); });
     renderPartsList();
     selectWorkStatus('Completed');
+    selectServicedBy('Ranch Crew');
     updateSubmitState();
   }
 
@@ -1291,10 +1419,12 @@
     renderKpis();
     renderWorkTypeGrid();
     renderStatusToggle();
+    renderServicedByToggle();
     renderPartsList();
     renderAssetPlate();
     renderRecentLog();
     populateRegisterForm();
+    populateAssetCategoryFilter();
     updateSubmitState();
   }
 
