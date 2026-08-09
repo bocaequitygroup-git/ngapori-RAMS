@@ -501,7 +501,7 @@
         <input type="text" id="regAssetId" placeholder="e.g. TRAC-02" style="flex:1;">
         <button type="button" class="btn btn-secondary" id="regAutoIdBtn" style="width:auto; padding:0 14px; white-space:nowrap;">Auto-Generate</button>
       </div>
-      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it. Auto-Generate suggests the next ID for the chosen category based on the live sheet.</div>
+      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it. Auto-Generate suggests the next ID for the chosen asset type based on the live sheet.</div>
     </div>
     <div class="field">
       <label for="regAssetName">Asset Name <span class="required-mark">*</span></label>
@@ -513,8 +513,13 @@
       <div class="field-hint">Stamped automatically the moment you save this asset — not editable.</div>
     </div>
     <div class="field">
-      <label for="regCategory">Category <span class="required-mark">*</span></label>
+      <label for="regCategory">Domain <span class="required-mark">*</span></label>
       <select id="regCategory"></select>
+    </div>
+    <div class="field">
+      <label for="regAssetType">Asset Type <span class="required-mark">*</span></label>
+      <select id="regAssetType"></select>
+      <div class="field-hint">Sets the ID prefix used by Auto-Generate (e.g. Tractor → EQ-TRACTOR-01).</div>
     </div>
     <div class="field">
       <label for="regManufacturer">Manufacturer</label>
@@ -574,10 +579,54 @@
 
   var HAS_BACKEND = (typeof google !== 'undefined' && google.script && google.script.run);
 
+  var DEMO_ASSET_TYPES = [
+    { domain: 'Equipment', type: 'Tractor', prefix: 'EQ-TRACTOR', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'UTV', prefix: 'EQ-UTV', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Generator', prefix: 'EQ-GEN', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Seeder', prefix: 'EQ-SEEDER', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Solar Array', prefix: 'EQ-SOLAR', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Water Pump', prefix: 'EQ-PUMP', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Portable Water Tank', prefix: 'EQ-TANK', suffixStyle: 'numeric' },
+    { domain: 'Equipment', type: 'Livestock Scale', prefix: 'EQ-SCALE', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Fence Line', prefix: 'INF-FENCE', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Gate', prefix: 'INF-GATE', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Energizer', prefix: 'INF-ENERGIZER', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Hydrant', prefix: 'INF-HYDRANT', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Water Line (Utility Check)', prefix: 'INF-WATERLINE', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Barn', prefix: 'INF-BARN', suffixStyle: 'alpha' },
+    { domain: 'Infrastructure', type: 'Storage Shed', prefix: 'INF-SHED', suffixStyle: 'numeric' },
+    { domain: 'Infrastructure', type: 'Hay Barn', prefix: 'INF-HAYBARN', suffixStyle: 'numeric' },
+    { domain: 'Water System', type: 'Water Tank', prefix: 'WATER-TANK', suffixStyle: 'numeric' },
+    { domain: 'Water System', type: 'Water Trough', prefix: 'WATER-TROUGH', suffixStyle: 'numeric' },
+    { domain: 'Water System', type: 'Frost-Free Hydrant', prefix: 'WATER-HYDRANT', suffixStyle: 'numeric' },
+    { domain: 'Water System', type: 'Irrigation Pump', prefix: 'WATER-PUMP', suffixStyle: 'numeric' },
+    { domain: 'Water System', type: 'Water Line (Forage/Irrigation)', prefix: 'WATER-LINE', suffixStyle: 'numeric' },
+    { domain: 'Feed System', type: 'Feed Bin', prefix: 'FEED-BIN', suffixStyle: 'numeric' },
+    { domain: 'Feed System', type: 'Feed Hopper', prefix: 'FEED-HOPPER', suffixStyle: 'numeric' },
+    { domain: 'Feed System', type: 'Mineral Feeder', prefix: 'FEED-MINERAL', suffixStyle: 'numeric' },
+    { domain: 'Feed System', type: 'Fertilizer Storage', prefix: 'FEED-FERT', suffixStyle: 'numeric' },
+    { domain: 'Poultry Tractor', type: 'Poultry Tractor', prefix: 'PT-TRACTOR', suffixStyle: 'numeric' },
+    { domain: 'Security Checkpoint', type: 'Checkpoint', prefix: 'SEC-POINT', suffixStyle: 'alpha' },
+    { domain: 'Harvest System', type: 'Harvest Bin', prefix: 'HARVEST-BIN', suffixStyle: 'numeric' },
+    { domain: 'Harvest System', type: 'Hay Bale Lot', prefix: 'HARVEST-LOT', suffixStyle: 'numeric' },
+    { domain: 'Harvest System', type: 'Silage Pit', prefix: 'HARVEST-SILAGE', suffixStyle: 'numeric' },
+    { domain: 'Inventory', type: 'Medicine Bottle', prefix: 'INV-MED', suffixStyle: 'numeric' },
+    { domain: 'Inventory', type: 'Chemical', prefix: 'INV-CHEM', suffixStyle: 'numeric' },
+    { domain: 'Inventory', type: 'Tool', prefix: 'INV-TOOL', suffixStyle: 'numeric' },
+    { domain: 'Inventory', type: 'Spare Part', prefix: 'INV-PART', suffixStyle: 'numeric' },
+    { domain: 'Inventory', type: 'Feed Bag', prefix: 'INV-FEED', suffixStyle: 'numeric' }
+  ];
+  var DEMO_DOMAIN_OPTIONS = (function(){
+    var seen = [], out = [];
+    DEMO_ASSET_TYPES.forEach(function(t){ if (seen.indexOf(t.domain) === -1){ seen.push(t.domain); out.push(t.domain); } });
+    return out;
+  })();
+
   var DEMO = {
     settings: {
       statusOptions: ['Operational', 'Needs Service', 'Out of Order'],
-      categoryOptions: ['Vehicle', 'Machinery', 'Structure', 'Irrigation', 'Fencing', 'Tool', 'Other'],
+      domainOptions: DEMO_DOMAIN_OPTIONS,
+      assetTypes: DEMO_ASSET_TYPES,
       workTypes: ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'],
       roles: ['Ranch Worker', 'Ranch Manager', 'Executive'],
       defaultServiceIntervalDays: 90,
@@ -591,7 +640,7 @@
       { username: 'founder', pin: '9999', displayName: 'Founder', role: 'Executive' }
     ],
     assets: [
-      { assetId: 'TRAC-01', assetName: 'John Deere 5075E Tractor', category: 'Vehicle', location: 'Equipment Yard', status: 'Operational', serviceIntervalDays: 90, lastServiced: '2026-06-01', nextServiceDue: '2026-08-30', purchasePrice: 55000 }
+      { assetId: 'TRAC-01', assetName: 'John Deere 5075E Tractor', category: 'Equipment', assetType: 'Tractor', location: 'Equipment Yard', status: 'Operational', serviceIntervalDays: 90, lastServiced: '2026-06-01', nextServiceDue: '2026-08-30', purchasePrice: 55000 }
     ],
     parts: [
       { name: 'Tractor Oil Filter', onHand: 6, minimum: 2, status: 'OK' }
@@ -624,24 +673,40 @@
     }
   }
 
-  function backendSuggestAssetId(category, cb){
+  function backendSuggestAssetId(assetType, cb){
     if (HAS_BACKEND){
       google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
         showToast('Couldn\'t suggest ID', String(err));
-      }).suggestNextAssetId(category);
+      }).suggestNextAssetId(assetType);
     } else {
-      var prefixMap = { Vehicle: 'VEH', Machinery: 'MACH', Structure: 'STRUC', Irrigation: 'IRR', Fencing: 'FNC', Tool: 'TL', Other: 'AST' };
-      var prefix = prefixMap[category] || 'AST';
-      var maxNum = 0;
-      DEMO.assets.forEach(function(a){
-        var m = a.assetId.match(/^([A-Za-z]+)-(\d+)$/);
-        if (m && m[1].toUpperCase() === prefix){
-          var n = parseInt(m[2], 10);
+      var typeInfo = DEMO_ASSET_TYPES.find(function(t){ return t.type === assetType; });
+      var prefix = typeInfo ? typeInfo.prefix : 'AST';
+      var suffixStyle = typeInfo ? typeInfo.suffixStyle : 'numeric';
+      var existingSuffixes = state.assets
+        .filter(function(a){ return a.assetId && a.assetId.toUpperCase().indexOf(prefix.toUpperCase() + '-') === 0; })
+        .map(function(a){ return a.assetId.substring(prefix.length + 1); });
+
+      var suggestion;
+      if (suffixStyle === 'alpha'){
+        var maxLetterCode = 'A'.charCodeAt(0) - 1;
+        existingSuffixes.forEach(function(s){
+          var m = s.match(/^([A-Za-z]+)$/);
+          if (m && m[1].length === 1){
+            var code = m[1].toUpperCase().charCodeAt(0);
+            if (code > maxLetterCode) maxLetterCode = code;
+          }
+        });
+        suggestion = prefix + '-' + String.fromCharCode(maxLetterCode + 1);
+      } else {
+        var maxNum = 0;
+        existingSuffixes.forEach(function(s){
+          var n = parseInt(s, 10);
           if (!isNaN(n) && n > maxNum) maxNum = n;
-        }
-      });
-      var next = maxNum + 1;
-      setTimeout(function(){ cb(prefix + '-' + (next < 10 ? '0' + next : next)); }, 120);
+        });
+        var next = maxNum + 1;
+        suggestion = prefix + '-' + (next < 10 ? '0' + next : next);
+      }
+      setTimeout(function(){ cb(suggestion); }, 120);
     }
   }
 
@@ -655,7 +720,7 @@
       if (exists){ if (errCb) errCb('Asset ID "' + data.assetId + '" already exists in ASSET_REGISTRY.'); return; }
       setTimeout(function(){
         DEMO.assets.push({
-          assetId: data.assetId, assetName: data.assetName, category: data.category, location: data.location,
+          assetId: data.assetId, assetName: data.assetName, category: data.category, assetType: data.assetType || '', location: data.location,
           status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
           lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
           identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || '',
@@ -847,9 +912,9 @@
   function populateAssetCategoryFilter(){
     assetCategoryFilter.innerHTML = '';
     var allOpt = document.createElement('option');
-    allOpt.value = ''; allOpt.textContent = 'All Categories';
+    allOpt.value = ''; allOpt.textContent = 'All Domains';
     assetCategoryFilter.appendChild(allOpt);
-    state.settings.categoryOptions.forEach(function(c){
+    state.settings.domainOptions.forEach(function(c){
       var opt = document.createElement('option');
       opt.value = c; opt.textContent = c;
       assetCategoryFilter.appendChild(opt);
@@ -914,7 +979,8 @@
           statusBadgeHtml(a.status) +
         '</div>' +
         '<div class="meta-row">' +
-          '<div><div class="k">Category</div><div class="v">' + a.category + '</div></div>' +
+          '<div><div class="k">Domain</div><div class="v">' + a.category + '</div></div>' +
+          (a.assetType ? '<div><div class="k">Asset Type</div><div class="v">' + a.assetType + '</div></div>' : '') +
           '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
           '<div><div class="k">Manufacturer</div><div class="v">' + (a.manufacturer || '—') + '</div></div>' +
           '<div><div class="k">Registered</div><div class="v">' + (a.dateCreated || '—') + '</div></div>' +
@@ -1085,11 +1151,12 @@
     regPhotoGrid.insertAdjacentElement('afterend', el);
   }
 
-  var VIN_CATEGORIES = ['Vehicle'];
+  var VIN_ASSET_TYPES = ['Tractor', 'UTV'];
+  var regAssetType = document.getElementById('regAssetType');
 
   function populateRegisterForm(){
     regCategory.innerHTML = '';
-    state.settings.categoryOptions.forEach(function(c){
+    state.settings.domainOptions.forEach(function(c){
       var opt = document.createElement('option');
       opt.value = c; opt.textContent = c;
       regCategory.appendChild(opt);
@@ -1100,27 +1167,40 @@
       opt.value = s; opt.textContent = s;
       regStatus.appendChild(opt);
     });
-    updateIdentifierLabel();
+    populateAssetTypeOptions();
   }
 
+  function populateAssetTypeOptions(){
+    regAssetType.innerHTML = '';
+    var domain = regCategory.value;
+    var types = (state.settings.assetTypes || []).filter(function(t){ return t.domain === domain; });
+    types.forEach(function(t){
+      var opt = document.createElement('option');
+      opt.value = t.type; opt.textContent = t.type;
+      regAssetType.appendChild(opt);
+    });
+    updateIdentifierLabel();
+  }
+  regCategory.addEventListener('change', populateAssetTypeOptions);
+
   function updateIdentifierLabel(){
-    var isVehicle = VIN_CATEGORIES.indexOf(regCategory.value) !== -1;
+    var isVehicle = VIN_ASSET_TYPES.indexOf(regAssetType.value) !== -1;
     regIdLabel.textContent = isVehicle ? 'VIN' : 'Manufacturer Serial Number';
     regIdNumber.placeholder = isVehicle ? '17-character VIN' : 'e.g. serial or ID plate number';
   }
-  regCategory.addEventListener('change', updateIdentifierLabel);
+  regAssetType.addEventListener('change', updateIdentifierLabel);
 
   document.getElementById('regAutoIdBtn').addEventListener('click', function(){
     var btn = document.getElementById('regAutoIdBtn');
-    var category = regCategory.value;
-    if (!category){
-      regError.textContent = 'Pick a category first so Auto-Generate knows which prefix to use.';
+    var assetType = regAssetType.value;
+    if (!assetType){
+      regError.textContent = 'Pick a domain and asset type first so Auto-Generate knows which prefix to use.';
       regError.classList.add('show');
       return;
     }
     btn.disabled = true;
     btn.textContent = '…';
-    backendSuggestAssetId(category, function(suggestedId){
+    backendSuggestAssetId(assetType, function(suggestedId){
       btn.disabled = false;
       btn.textContent = 'Auto-Generate';
       document.getElementById('regAssetId').value = suggestedId;
@@ -1150,6 +1230,8 @@
     document.getElementById('regLastServiced').value = '';
     document.getElementById('regPurchasePrice').value = '0.00';
     regStatus.value = 'Operational';
+    regCategory.selectedIndex = 0;
+    populateAssetTypeOptions();
     regError.classList.remove('show');
     regPhotos = [];
     renderPhotoGrid();
@@ -1164,6 +1246,11 @@
       regError.classList.add('show');
       return;
     }
+    if (!regAssetType.value){
+      regError.textContent = 'Pick an Asset Type so the record is tagged correctly.';
+      regError.classList.add('show');
+      return;
+    }
     if (regPhotos.length < 3){
       regError.textContent = 'Add at least 3 photos of the asset before saving.';
       regError.classList.add('show');
@@ -1173,6 +1260,7 @@
       assetId: assetId,
       assetName: assetName,
       category: regCategory.value,
+      assetType: regAssetType.value,
       manufacturer: document.getElementById('regManufacturer').value.trim(),
       location: document.getElementById('regLocation').value.trim(),
       identifierType: regIdLabel.textContent,
