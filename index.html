@@ -566,24 +566,21 @@
 
 <script>
 /* ============================================================
-   CONFIG — published-CSV sources (Ngapori RAMS) and the Apps
-   Script Web App URL for code_rams.gs. Paste the /exec URL below
-   once code_rams.gs is deployed.
+   CONFIG — the Apps Script Web App URL is injected server-side
+   from SETTINGS!B18 (QR_Base_URL) by doGet() in Code.gs, so there
+   is nothing to paste in here manually. Every read (login,
+   reference data) and write (asset/log/part) goes through this
+   same deployment's doPost(), so no separate "Publish to web" CSV
+   links are needed and PINs never leave the server.
    ============================================================ */
 const CONFIG = {
-  ASSET_REGISTRY_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=827432641&single=true&output=csv',
-  MAINTENANCE_LOG_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=548316161&single=true&output=csv',
-  PARTS_INVENTORY_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1759849016&single=true&output=csv',
-  CAPEX_PLAN_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1651068684&single=true&output=csv',
-  USERS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=346021084&single=true&output=csv',
-  SETTINGS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1074991317&single=true&output=csv',
-  ASSET_TYPES_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1482700792&single=true&output=csv',
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbz04lMxOZw1TBBFxhrBGxPjDOJWC1otD36PUwLNY6O6nhM_vhAbLZ12h7VjCtgnvpQqpg/exec',
+  APPS_SCRIPT_URL: <?!= JSON.stringify(appsScriptUrl) ?>,
   QUEUE_KEY: 'ngapori_rams_offline_queue_v1'
 };
+const DEEP_LINK_ASSET_ID = <?!= JSON.stringify(deepLinkAssetId) ?>;
 
 /* ============================================================
-   STATIC FALLBACKS (used only if a CSV fetch fails/offline)
+   STATIC FALLBACKS (used only if the bootstrap request fails/offline)
    ============================================================ */
 const FALLBACK_STATUS_OPTIONS = ['Operational', 'Needs Service', 'Out of Order'];
 const FALLBACK_WORK_TYPES = ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'];
@@ -606,7 +603,6 @@ let state = {
   assetTypesByDomain: {},   // Domain -> [Asset_Type,...]
   assets: [],                // Asset_Registry rows
   parts: [],                  // Parts_Inventory rows
-  users: [],                    // Users rows (for client-side PIN check)
   settings: { statusOptions: FALLBACK_STATUS_OPTIONS, workTypes: FALLBACK_WORK_TYPES, params: {} },
   assetForm: emptyAssetForm(),
   logForm: emptyLogForm(),
@@ -634,100 +630,49 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ============================================================
-   CSV PARSING — every RAMS tab has title/instruction rows above
-   its real header, so we locate the header by a known first-
-   column marker rather than assuming line 1 is the header.
+   BACKEND CALLS — everything (login, reference data, writes)
+   goes through doPost() in Code.gs as a single JSON action
+   protocol. text/plain avoids a CORS preflight against the Apps
+   Script Web App.
    ============================================================ */
-function rawCsvRows(text){
-  const lines = text.replace(/\r/g,'').split('\n');
-  const parseLine = l => {
-    const out=[]; let cur=''; let q=false;
-    for(let i=0;i<l.length;i++){
-      const c=l[i];
-      if(c === '"'){ if(q && l[i+1] === '"'){cur+='"'; i++;} else q=!q; }
-      else if(c === ',' && !q){ out.push(cur); cur=''; }
-      else cur += c;
-    }
-    out.push(cur);
-    return out;
-  };
-  return lines.map(parseLine);
-}
-
-function parseNamedTable(raw, markerCol0Value){
-  const idx = raw.findIndex(r => r[0] && r[0].trim() === markerCol0Value);
-  if(idx === -1) return [];
-  const header = raw[idx].map(h => h.trim());
-  return raw.slice(idx+1)
-    .map(r => { const o={}; header.forEach((h,ci) => { if(h) o[h] = (r[ci] ?? '').trim(); }); return o; })
-    .filter(o => Object.values(o).some(v => v));
-}
-
-function parseSettingsCsv(text){
-  const raw = rawCsvRows(text);
-  let optHeaderIdx=-1, paramHeaderIdx=-1;
-  raw.forEach((r,i) => {
-    if(r[0] && r[0].trim() === 'Asset Status Options') optHeaderIdx = i;
-    if(r[0] && r[0].trim() === 'Parameter') paramHeaderIdx = i;
+async function postAction(action, data){
+  const payload = Object.assign({ action }, data || {});
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
   });
-  const statusOptions=[], workTypes=[];
-  if(optHeaderIdx >= 0){
-    const end = paramHeaderIdx >= 0 ? paramHeaderIdx : raw.length;
-    for(let i=optHeaderIdx+1; i<end; i++){
-      const r = raw[i]; if(!r) continue;
-      if(r[0] && r[0].trim()) statusOptions.push(r[0].trim());
-      if(r[2] && r[2].trim()) workTypes.push(r[2].trim());
-    }
-  }
-  const params = {};
-  if(paramHeaderIdx >= 0){
-    for(let i=paramHeaderIdx+1; i<raw.length; i++){
-      const r = raw[i]; if(!r || !r[0] || !r[0].trim()) continue;
-      params[r[0].trim()] = (r[1] ?? '').trim();
-    }
-  }
-  return {
-    statusOptions: statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS,
-    workTypes: workTypes.length ? workTypes : FALLBACK_WORK_TYPES,
-    params
-  };
-}
-
-async function fetchCsv(url){
-  const res = await fetch(url, { cache:'no-store' });
-  return res.text();
+  return res.json();
 }
 
 /* ============================================================
-   LOAD ALL REFERENCE DATA (after login)
+   LOAD ALL REFERENCE DATA (after login) — one round trip to the
+   server, which reads ASSET_TYPES, SETTINGS, ASSET_REGISTRY and
+   PARTS_INVENTORY directly off the sheet (always current, no
+   published-CSV staleness or setup step).
    ============================================================ */
 async function loadAllReferenceData(){
-  const results = await Promise.allSettled([
-    fetchCsv(CONFIG.ASSET_TYPES_CSV_URL),
-    fetchCsv(CONFIG.SETTINGS_CSV_URL),
-    fetchCsv(CONFIG.ASSET_REGISTRY_CSV_URL),
-    fetchCsv(CONFIG.PARTS_INVENTORY_CSV_URL)
-  ]);
-
-  if(results[0].status === 'fulfilled'){
-    const raw = rawCsvRows(results[0].value);
-    state.assetTypes = parseNamedTable(raw, 'Domain');
-    state.assetTypesByDomain = {};
-    state.assetTypes.forEach(t => {
-      if(!t.Domain || !t.Asset_Type) return;
-      (state.assetTypesByDomain[t.Domain] ||= []).push(t);
-    });
-  }
-  if(results[1].status === 'fulfilled'){
-    state.settings = parseSettingsCsv(results[1].value);
-  }
-  if(results[2].status === 'fulfilled'){
-    const raw = rawCsvRows(results[2].value);
-    state.assets = parseNamedTable(raw, 'Asset_ID');
-  }
-  if(results[3].status === 'fulfilled'){
-    const raw = rawCsvRows(results[3].value);
-    state.parts = parseNamedTable(raw, 'Part_Name');
+  try{
+    const data = await postAction('bootstrap');
+    if(data && data.success !== false){
+      state.assetTypes = data.assetTypes || [];
+      state.assetTypesByDomain = {};
+      state.assetTypes.forEach(t => {
+        if(!t.Domain || !t.Asset_Type) return;
+        (state.assetTypesByDomain[t.Domain] ||= []).push(t);
+      });
+      state.settings = {
+        statusOptions: (data.settings && data.settings.statusOptions && data.settings.statusOptions.length) ? data.settings.statusOptions : FALLBACK_STATUS_OPTIONS,
+        workTypes: (data.settings && data.settings.workTypes && data.settings.workTypes.length) ? data.settings.workTypes : FALLBACK_WORK_TYPES,
+        params: (data.settings && data.settings.params) || {}
+      };
+      state.assets = data.assets || [];
+      state.parts = data.parts || [];
+    } else {
+      showErr('Could not load reference data: ' + (data.message || 'unknown error'));
+    }
+  } catch(e){
+    showErr('Could not reach the server for reference data — some options may be limited until you reconnect.');
   }
 
   buildDomainTiles();
@@ -736,6 +681,17 @@ async function loadAllReferenceData(){
   buildLocationList();
   renderStats();
   applyDefaults();
+  applyDeepLink();
+}
+
+function applyDeepLink(){
+  if(!DEEP_LINK_ASSET_ID) return;
+  setMode('log');
+  const input = document.getElementById('logAssetIdInput');
+  input.value = DEEP_LINK_ASSET_ID;
+  state.logForm.assetId = DEEP_LINK_ASSET_ID;
+  const rec = state.assets.find(a => a.Asset_ID === DEEP_LINK_ASSET_ID);
+  if(rec) renderAssetReadout(rec);
 }
 
 function applyDefaults(){
@@ -787,18 +743,15 @@ async function attemptLogin(){
   loginBtn.disabled = true; loginBtn.textContent = 'Checking…';
 
   try{
-    // Users list is loaded fresh at login time so a PIN change on the sheet
-    // takes effect immediately without redeploying anything.
-    const text = await fetchCsv(CONFIG.USERS_CSV_URL);
-    const raw = rawCsvRows(text);
-    state.users = parseNamedTable(raw, 'Username');
-    const match = state.users.find(u => (u.Username || '').toLowerCase() === username.toLowerCase());
+    // Credentials are checked server-side against USERS on every sign-in, so
+    // a PIN change on the sheet takes effect immediately with no redeploy —
+    // and the PIN itself never leaves the server or touches the browser.
+    const result = await postAction('login', { username, pin });
+    if(!result || result.success === false){
+      throw new Error((result && result.message) || 'Sign-in failed.');
+    }
 
-    if(!match){ throw new Error('Username not found.'); }
-    if((match.Active || '').toLowerCase() !== 'yes'){ throw new Error('This account is not active.'); }
-    if((match.PIN || '').trim() !== pin){ throw new Error('Incorrect PIN.'); }
-
-    state.user = { username: match.Username, displayName: match.Display_Name, role: match.Role };
+    state.user = { username, displayName: result.displayName, role: result.role };
     document.getElementById('userDisplayName').textContent = state.user.displayName;
     document.getElementById('userRole').textContent = state.user.role;
     document.getElementById('logReportedByDisplay').value = state.user.displayName;
@@ -913,7 +866,7 @@ function saveLabelForMode(){
 function buildDomainTiles(){
   const wrap = document.getElementById('domainTiles');
   const domains = Object.keys(state.assetTypesByDomain);
-  if(!domains.length){ wrap.innerHTML = '<div class="loadingnote">No ASSET_TYPES loaded — check the published CSV link.</div>'; return; }
+  if(!domains.length){ wrap.innerHTML = '<div class="loadingnote">No ASSET_TYPES loaded — check the sheet and your connection.</div>'; return; }
   wrap.innerHTML = domains.map(d => `
     <div class="tile" data-domain="${d}"><span class="glyph">${domainGlyph(d)}</span>${d}</div>`).join('');
   wrap.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => selectDomain(t.dataset.domain)));
@@ -1166,8 +1119,12 @@ function saveSuccessMessage(payload, result){
   return `${payload.partName} restocked.`;
 }
 
+function backendConfigured(){
+  return !!CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL.indexOf('YOUR_DEPLOYMENT_ID') === -1;
+}
+
 async function sendToBackend(payload){
-  if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith('PASTE_')){
+  if(!backendConfigured()){
     queuePayload(payload);
     return { ok:false, queued:true };
   }
@@ -1207,7 +1164,7 @@ async function trySyncQueue(){
   statusPill.classList.add('syncing');
   const remaining = [];
   for(const payload of q){
-    if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith('PASTE_')){ remaining.push(payload); continue; }
+    if(!backendConfigured()){ remaining.push(payload); continue; }
     try{
       const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)
