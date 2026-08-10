@@ -725,6 +725,18 @@ function wireLoginEvents(){
   document.getElementById('loginBtn').addEventListener('click', attemptLogin);
   document.getElementById('loginUsername').addEventListener('keydown', e => { if(e.key === 'Enter') attemptLogin(); });
   document.getElementById('logoutBtn').addEventListener('click', signOut);
+
+  // The PIN pad is tap/click-only by default (built for on-site mobile
+  // use). This also accepts a physical keyboard so desktop sign-in
+  // doesn't feel broken: digits 0-9, Backspace, and Enter all work
+  // as long as focus isn't inside the username field.
+  document.addEventListener('keydown', e => {
+    if(document.getElementById('loginScreen').style.display === 'none') return;
+    if(document.activeElement === document.getElementById('loginUsername')) return;
+    if(e.key >= '0' && e.key <= '9'){ onPinKey(e.key); }
+    else if(e.key === 'Backspace'){ e.preventDefault(); onPinKey('⌫'); }
+    else if(e.key === 'Enter'){ onPinKey('OK'); }
+  });
 }
 
 async function attemptLogin(){
