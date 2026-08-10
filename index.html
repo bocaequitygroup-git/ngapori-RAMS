@@ -256,20 +256,6 @@
   .wo-asset-line .aid{ font-family:'IBM Plex Mono', monospace; font-weight:700; }
   .wo-asset-line .amissing{ color:var(--ink-soft); font-style:italic; }
 
-  .priority-toggle{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .priority-chip{
-    border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
-    padding:10px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:600;
-    transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-  }
-  .priority-chip:hover{ border-color:var(--ink-soft); }
-  .priority-chip.selected{ color:#F9F2E7; font-weight:700; box-shadow:0 2px 6px rgba(36,31,26,0.3); }
-  .priority-chip.selected::before{ content:"✓ "; }
-  .priority-chip[data-level="Low"].selected{ border-color:var(--sage-dark); background:var(--sage); }
-  .priority-chip[data-level="Medium"].selected{ border-color:var(--ochre-dark); background:var(--ochre); }
-  .priority-chip[data-level="High"].selected{ border-color:var(--rust-dark); background:var(--rust); }
-  .priority-chip[data-level="Emergency"].selected{ border-color:var(--rust-dark); background:var(--rust-dark); box-shadow:0 0 0 3px rgba(124,46,21,0.25); }
-
   .priority-tag{
     font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;
     padding:2px 7px; border-radius:20px; white-space:nowrap;
@@ -285,7 +271,6 @@
     padding-bottom:6px; border-bottom:1.5px solid var(--ink); min-height:20px;
   }
 
-  .work-type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .chip-option{
     border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
     padding:11px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:500;
@@ -508,8 +493,8 @@
         </div>
 
         <div class="wo-block">
-          <div class="k">Priority <span class="required-mark">*</span></div>
-          <div class="priority-toggle" id="priorityToggle"></div>
+          <label for="prioritySelect" class="k">Priority <span class="required-mark">*</span></label>
+          <select id="prioritySelect"></select>
         </div>
 
         <div class="wo-divider"></div>
@@ -528,13 +513,14 @@
           </div>
 
           <div class="field">
-            <label>Work Type <span class="required-mark">*</span></label>
-            <div class="work-type-grid" id="workTypeGrid"></div>
+            <label for="workTypeSelect">Work Type <span class="required-mark">*</span></label>
+            <select id="workTypeSelect"></select>
           </div>
 
           <div class="field">
             <label>Parts / Materials Needed</label>
             <div class="parts-list" id="partsList"></div>
+            <textarea id="materialsNoteInput" placeholder="Describe any part or material needed that isn't in the list above — e.g. &quot;2x 5/16&quot; fence staples, box of gorilla tape, replacement mower belt (not in PARTS_INVENTORY yet).&quot; This goes on the work order even if nothing is deducted from inventory." style="margin-top:8px; min-height:64px;"></textarea>
           </div>
         </div>
 
@@ -547,8 +533,8 @@
           </div>
 
           <div class="field">
-            <label>Work Status <span class="required-mark">*</span></label>
-            <div class="status-toggle" id="statusToggle"></div>
+            <label for="statusSelect">Work Status <span class="required-mark">*</span></label>
+            <select id="statusSelect"></select>
           </div>
 
           <div class="field">
@@ -1480,31 +1466,19 @@
       '</span>';
   }
 
-  function renderPriorityToggle(){
-    var wrap = document.getElementById('priorityToggle');
-    wrap.innerHTML = '';
+  function renderPrioritySelect(){
+    var sel = document.getElementById('prioritySelect');
+    sel.innerHTML = '<option value="" disabled selected>Select priority…</option>';
     ['Low', 'Medium', 'High', 'Emergency'].forEach(function(level){
-      var chip = document.createElement('div');
-      chip.className = 'priority-chip';
-      chip.setAttribute('data-level', level);
-      chip.setAttribute('role', 'button');
-      chip.setAttribute('aria-pressed', 'false');
-      chip.textContent = level;
-      chip.tabIndex = 0;
-      chip.addEventListener('click', function(){ selectPriority(level); });
-      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); selectPriority(level); } });
-      wrap.appendChild(chip);
+      var opt = document.createElement('option');
+      opt.value = level;
+      opt.textContent = level;
+      sel.appendChild(opt);
     });
-  }
-
-  function selectPriority(level){
-    state.priority = level;
-    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){
-      var isSel = chip.getAttribute('data-level') === level;
-      chip.classList.toggle('selected', isSel);
-      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+    sel.addEventListener('change', function(){
+      state.priority = sel.value || null;
+      updateSubmitState();
     });
-    updateSubmitState();
   }
 
   function priorityTagHtml(priority){
@@ -1512,65 +1486,43 @@
     return '<span class="priority-tag ' + cls + '">' + (priority || 'Medium') + '</span>';
   }
 
-  function renderWorkTypeGrid(){
-    var grid = document.getElementById('workTypeGrid');
-    grid.innerHTML = '';
+  function renderWorkTypeSelect(){
+    var sel = document.getElementById('workTypeSelect');
+    sel.innerHTML = '<option value="" disabled selected>Select work type…</option>';
     state.settings.workTypes.forEach(function(wt){
-      var chip = document.createElement('div');
-      chip.className = 'chip-option';
-      chip.setAttribute('role', 'button');
-      chip.setAttribute('aria-pressed', 'false');
-      chip.textContent = wt;
-      chip.tabIndex = 0;
-      chip.addEventListener('click', function(){ selectWorkType(wt); });
-      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkType(wt); } });
-      grid.appendChild(chip);
+      var opt = document.createElement('option');
+      opt.value = wt;
+      opt.textContent = wt;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function(){
+      state.workType = sel.value || null;
+      var isDamage = sel.value === 'Damage / Repair Needed';
+      document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
+      if (!isDamage) document.getElementById('markOutOfOrder').checked = false;
+      updateSubmitState();
     });
   }
 
-  function selectWorkType(wt){
-    state.workType = wt;
-    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){
-      var isSel = chip.textContent === wt;
-      chip.classList.toggle('selected', isSel);
-      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
-    });
-    var isDamage = wt === 'Damage / Repair Needed';
-    document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
-    if (!isDamage) document.getElementById('markOutOfOrder').checked = false;
-    updateSubmitState();
-  }
-
-  function renderStatusToggle(){
-    var wrap = document.getElementById('statusToggle');
-    wrap.innerHTML = '';
+  function renderStatusSelect(){
+    var sel = document.getElementById('statusSelect');
+    sel.innerHTML = '<option value="" disabled selected>Select status…</option>';
     ['Completed', 'Open / Needs Follow-up'].forEach(function(s){
-      var chip = document.createElement('div');
-      chip.className = 'chip-option';
-      chip.setAttribute('role', 'button');
-      chip.setAttribute('aria-pressed', 'false');
-      chip.textContent = s;
-      chip.tabIndex = 0;
-      chip.addEventListener('click', function(){ selectWorkStatus(s); });
-      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWorkStatus(s); } });
-      wrap.appendChild(chip);
+      var opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      sel.appendChild(opt);
     });
-  }
-
-  function selectWorkStatus(s){
-    state.workStatus = s;
-    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){
-      var isSel = chip.textContent === s;
-      chip.classList.toggle('selected', isSel);
-      chip.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+    sel.addEventListener('change', function(){
+      state.workStatus = sel.value || null;
+      var completedDateInput = document.getElementById('completedDateInput');
+      if (sel.value === 'Completed'){
+        if (!completedDateInput.value) completedDateInput.value = todayIso();
+      } else {
+        completedDateInput.value = '';
+      }
+      updateSubmitState();
     });
-    var completedDateInput = document.getElementById('completedDateInput');
-    if (s === 'Completed'){
-      if (!completedDateInput.value) completedDateInput.value = todayIso();
-    } else {
-      completedDateInput.value = '';
-    }
-    updateSubmitState();
   }
 
   var vendorNameInput = document.getElementById('vendorNameInput');
@@ -1701,6 +1653,7 @@
       completedDate: document.getElementById('completedDateInput').value || '',
       status: state.workStatus,
       parts: partsPayload,
+      materialsNote: document.getElementById('materialsNoteInput').value.trim(),
       markOutOfOrder: document.getElementById('markOutOfOrder').checked,
       serviceLocation: state.servicedBy,
       vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : '',
@@ -1774,9 +1727,10 @@
     document.getElementById('damageFlagRow').style.display = 'none';
     document.getElementById('woNumber').textContent = 'Assigned on submit';
     if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
-    Array.from(document.getElementById('workTypeGrid').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
-    Array.from(document.getElementById('priorityToggle').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
-    Array.from(document.getElementById('statusToggle').children).forEach(function(chip){ chip.classList.remove('selected'); chip.setAttribute('aria-pressed', 'false'); });
+    document.getElementById('materialsNoteInput').value = '';
+    document.getElementById('workTypeSelect').value = '';
+    document.getElementById('prioritySelect').value = '';
+    document.getElementById('statusSelect').value = '';
     renderPartsList();
     selectServicedBy('Ranch Crew');
     updateSubmitState();
@@ -1802,9 +1756,9 @@
 
   function renderAll(){
     renderKpis();
-    renderWorkTypeGrid();
-    renderPriorityToggle();
-    renderStatusToggle();
+    renderWorkTypeSelect();
+    renderPrioritySelect();
+    renderStatusSelect();
     renderServicedByToggle();
     renderPartsList();
     renderAssetPlate();
