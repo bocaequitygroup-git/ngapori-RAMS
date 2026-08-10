@@ -1681,7 +1681,7 @@
     localRecentLog.unshift({
       logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType,
       description: entry.description, reportedBy: entry.reportedBy, assignedTo: entry.assignedTo,
-      priority: entry.priority, cost: entry.cost, status: entry.status
+      priority: entry.priority, cost: entry.cost, status: entry.status, materialsNote: entry.materialsNote
     });
     renderRecentLog();
   }
@@ -1699,6 +1699,7 @@
       el.innerHTML =
         '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
         '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
+        (entry.materialsNote ? '<div class="desc" style="font-style:italic; color:var(--ink-soft);">Materials: ' + escapeHtml(entry.materialsNote) + '</div>' : '') +
         '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
       list.appendChild(el);
     });
