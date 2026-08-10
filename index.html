@@ -574,10 +574,20 @@
    links are needed and PINs never leave the server.
    ============================================================ */
 const CONFIG = {
-  APPS_SCRIPT_URL: <?!= JSON.stringify(appsScriptUrl) ?>,
+  APPS_SCRIPT_URL: "__APPS_SCRIPT_URL__",
   QUEUE_KEY: 'ngapori_rams_offline_queue_v1'
 };
-const DEEP_LINK_ASSET_ID = <?!= JSON.stringify(deepLinkAssetId) ?>;
+const DEEP_LINK_ASSET_ID = "__DEEP_LINK_ASSET_ID__";
+
+// Surface any uncaught JS error on the login screen instead of failing
+// silently (e.g. blank/unresponsive PIN pad with no clue why).
+window.addEventListener('error', e => {
+  const banner = document.getElementById('loginErrBanner');
+  if(banner){
+    banner.textContent = 'App failed to load: ' + (e.message || 'unknown script error') + '. Check the Apps Script deployment.';
+    banner.classList.add('show');
+  }
+});
 
 /* ============================================================
    STATIC FALLBACKS (used only if the bootstrap request fails/offline)
