@@ -2,1793 +2,1316 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Ngapori RAMS — Field Maintenance Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Ngapori RAMS — Asset & Maintenance Entry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#241F1A;
-    --ink-soft:#5B5348;
-    --canvas:#E7E0CC;
-    --canvas-deep:#D9CEAF;
-    --card:#FBF8EF;
-    --card-line:rgba(36,31,26,0.14);
+    --bg:#F2ECDA;
+    --surface:#FFFEFA;
+    --surface-sunk:#EAE2C9;
+    --ink:#251F16;
+    --ink-soft:#655D48;
+    --line:#D7CBA6;
+    --pasture:#33502B;
+    --pasture-dark:#213A1B;
     --rust:#A8431F;
-    --rust-dark:#7C2E15;
-    --sage:#4E6248;
-    --sage-dark:#37452F;
-    --ochre:#B8801E;
-    --ochre-dark:#845C11;
-    --steel:#3C5164;
-    --shadow:rgba(36,31,26,0.28);
-    --focus:#2F6FB5;
+    --rust-dark:#832F14;
+    --ready:#3F7D3A;
+    --ready-bg:#E4EEDD;
+    --warn:#C98A22;
+    --warn-bg:#F7EAD2;
+    --danger:#B23B2E;
+    --danger-bg:#F6E0DA;
+    --focus:#3E7CB1;
+    --radius:10px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+    --tap:52px;
   }
-
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; }
+  *{box-sizing:border-box;}
   body{
-    background:
-      repeating-linear-gradient(115deg, rgba(36,31,26,0.025) 0px, rgba(36,31,26,0.025) 1px, transparent 1px, transparent 5px),
-      var(--canvas);
-    color:var(--ink);
-    font-family:'IBM Plex Sans', system-ui, sans-serif;
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    padding-bottom:120px;
+    -webkit-tap-highlight-color:transparent;
   }
+  ::selection{background:var(--warn-bg);}
+  .eyebrow{
+    font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:.14em;
+    font-size:12px; font-weight:600; color:var(--ink-soft);
+  }
+  h1,h2,h3{font-family:'Oswald',sans-serif; margin:0; letter-spacing:.01em;}
 
-  h1,h2,h3,.display{
-    font-family:'Oswald', 'IBM Plex Sans', sans-serif;
-    font-weight:600;
-    letter-spacing:0.02em;
-    margin:0;
+  /* ---------- Header ---------- */
+  header.topbar{
+    background:var(--pasture); color:#EFE9D6;
+    padding:var(--sp-4) var(--sp-4) var(--sp-3);
+    position:sticky; top:0; z-index:40;
+    box-shadow:0 2px 0 var(--pasture-dark);
   }
-  .mono{ font-family:'IBM Plex Mono', monospace; }
+  .topbar-row{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);}
+  .brandmark{display:flex; align-items:center; gap:10px;}
+  .brandmark .tagicon{
+    width:34px; height:26px; border-radius:6px 6px 6px 2px;
+    background:var(--rust); position:relative; flex:none;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .brandmark h1{font-size:19px; color:#fff; line-height:1.15;}
+  .brandmark .sub{font-size:11px; color:#C9D6BE; letter-spacing:.08em; text-transform:uppercase;}
+  .statuspill{
+    display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.1); color:#EFE9D6;
+    white-space:nowrap;
+  }
+  .statuspill .dot{width:8px; height:8px; border-radius:50%; background:#7FCB6E;}
+  .statuspill.offline .dot{background:#E0B23A;}
+  .statuspill.syncing .dot{background:#E0B23A; animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-  button{ font-family:inherit; }
-  input,select,textarea{ font-family:'IBM Plex Sans', sans-serif; }
+  .userrow{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:var(--sp-3);
+    background:rgba(255,255,255,.08); border-radius:8px; padding:8px 12px;}
+  .userrow .who{font-size:13px;}
+  .userrow .who b{font-family:'Oswald',sans-serif; letter-spacing:.02em;}
+  .userrow .role{font-size:11px; color:#C9D6BE; text-transform:uppercase; letter-spacing:.06em;}
+  .logoutbtn{background:transparent; border:1.5px solid rgba(255,255,255,.3); color:#EFE9D6; border-radius:6px;
+    padding:6px 10px; font-size:12px; cursor:pointer; font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:.04em;}
 
-  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
-    outline:3px solid var(--focus);
-    outline-offset:2px;
+  .modebar{display:flex; gap:8px; margin-top:var(--sp-3); flex-wrap:wrap;}
+  .modebtn{
+    flex:1; min-width:140px; border:1.5px solid rgba(255,255,255,.25); background:transparent;
+    color:#EFE9D6; padding:10px 14px; border-radius:8px; font-family:'Oswald',sans-serif;
+    font-size:13px; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-weight:500;
+    transition:background .15s, border-color .15s;
   }
+  .modebtn.active{background:var(--rust); border-color:var(--rust); color:#fff;}
 
-  .wrap{ max-width:640px; margin:0 auto; padding:0 0 48px; }
+  /* ---------- Layout ---------- */
+  main{max-width:760px; margin:0 auto; padding:var(--sp-4);}
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    margin-bottom:var(--sp-4); overflow:hidden;
+  }
+  .card-head{
+    padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+    background:var(--surface-sunk);
+  }
+  .card-head h2{font-size:16px;}
+  .card-head .num{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft);
+  }
+  .card-body{padding:var(--sp-4);}
 
-  /* ---------- stamped-tag header ---------- */
-  .tag-header{
-    position:relative;
-    background:linear-gradient(180deg, var(--rust) 0%, var(--rust-dark) 100%);
-    color:#F4E9D8;
-    padding:22px 24px 26px;
-    box-shadow:0 6px 18px var(--shadow);
-    overflow:hidden;
+  .field{margin-bottom:var(--sp-4);}
+  .field:last-child{margin-bottom:0;}
+  label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; letter-spacing:.02em;}
+  label .req{color:var(--rust);}
+  input[type=text], input[type=number], input[type=date], input[type=password], select, textarea{
+    width:100%; height:var(--tap); border:1.5px solid var(--line); border-radius:8px;
+    padding:0 14px; font-size:16px; font-family:'IBM Plex Sans',sans-serif; background:#fff; color:var(--ink);
   }
-  .tag-header::before{
-    content:"";
-    position:absolute; inset:0;
-    background:repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 9px);
-    pointer-events:none;
-  }
-  .rivet{
-    position:absolute; width:9px; height:9px; border-radius:50%;
-    background:radial-gradient(circle at 35% 35%, #F4E9D8, #8B4526 70%, #5c2a12 100%);
-    box-shadow:0 1px 2px rgba(0,0,0,0.5);
-  }
-  .rivet.tl{ top:10px; left:12px; } .rivet.tr{ top:10px; right:12px; }
-  .rivet.bl{ bottom:10px; left:12px; } .rivet.br{ bottom:10px; right:12px; }
+  textarea{height:88px; padding:12px 14px; resize:vertical;}
+  input:focus, select:focus, textarea:focus{outline:2.5px solid var(--focus); outline-offset:1px; border-color:var(--focus);}
+  input[readonly]{background:var(--surface-sunk); color:var(--ink-soft);}
+  .help{font-size:12px; color:var(--ink-soft); margin-top:5px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-3);}
+  @media (max-width:520px){.row2{grid-template-columns:1fr;}}
 
-  .tag-header .eyebrow{
-    font-size:11px; letter-spacing:0.18em; text-transform:uppercase;
-    opacity:0.85; margin-bottom:4px;
+  /* Tile groups (domain, status) */
+  .tilegroup{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  @media (max-width:560px){.tilegroup{grid-template-columns:repeat(2,1fr);}}
+  .tilegroup.three{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:520px){.tilegroup.three{grid-template-columns:1fr;}}
+  .tile{
+    min-height:var(--tap); border:2px solid var(--line); background:#fff; border-radius:9px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    cursor:pointer; padding:8px 4px; font-family:'Oswald',sans-serif; font-size:12.5px;
+    font-weight:500; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;
+    transition:border-color .12s, background .12s, color .12s; text-align:center;
   }
-  .tag-header h1{ font-size:23px; text-transform:uppercase; line-height:1.15; }
-  .tag-header .sub{ font-size:13px; margin-top:3px; opacity:0.88; }
+  .tile .glyph{font-size:19px; line-height:1;}
+  .tile.active{background:var(--pasture); border-color:var(--pasture); color:#fff;}
+  .tile.active.status-warn{background:var(--warn); border-color:var(--warn); color:#fff;}
+  .tile.active.status-danger{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .tile:focus-visible{outline:2.5px solid var(--focus); outline-offset:2px;}
 
-  .user-chip{
-    margin-top:16px; display:flex; align-items:center; justify-content:space-between;
-    background:rgba(0,0,0,0.18); border:1px solid rgba(244,233,216,0.35);
-    border-radius:8px; padding:9px 12px;
+  /* ID badge */
+  .tagbadge{
+    display:flex; align-items:center; gap:10px; background:var(--surface-sunk);
+    border:1.5px dashed var(--line); border-radius:9px; padding:10px 14px; margin-bottom:var(--sp-4);
   }
-  .user-chip .who{ font-size:13px; }
-  .user-chip .who b{ font-weight:600; }
-  .user-chip .role-badge{
-    font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    background:rgba(244,233,216,0.18); padding:3px 7px; border-radius:4px; margin-left:8px;
+  .tagbadge .chip{
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; color:#fff;
+    background:var(--ink-soft); padding:8px 14px; border-radius:6px 6px 6px 2px; position:relative;
+    letter-spacing:.02em; white-space:nowrap;
   }
-  .logout-btn{
-    background:none; border:1px solid rgba(244,233,216,0.5); color:#F4E9D8;
-    border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer;
-  }
-  .logout-btn:hover{ background:rgba(244,233,216,0.12); }
+  .tagbadge .lbl{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.08em;}
+  .tagbadge .note{font-size:12px; color:var(--ink-soft);}
 
-  /* ---------- login ---------- */
-  .login-screen{ padding:60px 24px; max-width:400px; margin:0 auto; }
-  .login-card{
-    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
-    padding:26px 22px; box-shadow:0 4px 14px var(--shadow);
+  /* Stepper */
+  .weightrow{display:flex; align-items:stretch; gap:8px;}
+  .weightrow input{flex:1; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:600;}
+  .stepbtn{
+    width:52px; height:var(--tap); border:1.5px solid var(--line); background:#fff; border-radius:8px;
+    font-size:20px; font-weight:600; color:var(--pasture); cursor:pointer;
   }
-  .login-card h2{ font-size:19px; text-transform:uppercase; margin-bottom:4px; }
-  .login-card .lead{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; line-height:1.5; }
-  .field{ margin-bottom:16px; }
-  .field label{
-    display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em;
-    color:var(--ink-soft); font-weight:600; margin-bottom:6px;
-  }
-  select, .textlike{
-    width:100%; padding:12px 12px; border-radius:8px; border:1.5px solid var(--card-line);
-    background:#fff; color:var(--ink); font-size:15px;
-  }
-  input[type=text], input[type=number], input[type=password], input[type=tel], textarea{
-    width:100%; padding:12px 12px; border-radius:8px; border:1.5px solid var(--card-line);
-    background:#fff; color:var(--ink); font-size:15px;
-  }
-  .pin-dots{ letter-spacing:0.4em; font-family:'IBM Plex Mono', monospace; font-size:20px; }
-  textarea{ resize:vertical; min-height:84px; line-height:1.4; }
+  .stepbtn:active{background:var(--surface-sunk);}
+  .stepgroup{display:flex; gap:4px;}
 
-  .btn{
-    display:inline-flex; align-items:center; justify-content:center; gap:8px;
-    border:none; border-radius:9px; padding:13px 18px; font-size:14.5px; font-weight:600;
-    cursor:pointer; width:100%; letter-spacing:0.01em;
+  /* Autocomplete */
+  .ac-wrap{position:relative;}
+  .ac-list{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); background:#fff; border:1.5px solid var(--line);
+    border-radius:8px; max-height:220px; overflow-y:auto; z-index:20; box-shadow:0 6px 18px rgba(37,31,22,.12);
+    display:none;
   }
-  .btn-primary{ background:var(--rust); color:#F9F2E7; }
-  .btn-primary:hover{ background:var(--rust-dark); }
-  .btn-secondary{ background:var(--card); color:var(--ink); border:1.5px solid var(--card-line); }
-  .btn-secondary:hover{ background:var(--canvas-deep); }
-  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .ac-list.open{display:block;}
+  .ac-item{padding:10px 14px; cursor:pointer; font-size:14px; border-bottom:1px solid var(--surface-sunk);}
+  .ac-item:last-child{border-bottom:none;}
+  .ac-item:hover, .ac-item.hi{background:var(--surface-sunk);}
+  .ac-item .mini{color:var(--ink-soft); font-size:12px;}
 
-  .error-text{ color:var(--rust-dark); font-size:13px; margin-top:10px; display:none; }
-  .error-text.show{ display:block; }
+  /* Chip row */
+  .chiprow{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:9px 16px;
+    font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink-soft);
+  }
+  .chip.active{background:var(--pasture); border-color:var(--pasture); color:#fff;}
 
-  /* ---------- app shell ---------- */
-  #app{ display:none; }
+  .checkline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-top:6px;}
+  .checkline input{width:18px; height:18px;}
 
-  /* KPI strip */
-  .kpi-strip{
-    display:flex; gap:10px; overflow-x:auto; padding:16px 20px 4px;
-    -webkit-overflow-scrolling:touch;
-  }
-  .kpi-strip::-webkit-scrollbar{ display:none; }
-  .kpi-card{
-    flex:0 0 auto; min-width:118px; background:var(--card); border:1px solid var(--card-line);
-    border-radius:10px; padding:11px 13px; box-shadow:0 2px 6px rgba(36,31,26,0.10);
-  }
-  .kpi-card .num{ font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; line-height:1; }
-  .kpi-card .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); margin-top:5px; line-height:1.3; }
-  .kpi-card.warn .num{ color:var(--ochre-dark); }
-  .kpi-card.danger .num{ color:var(--rust-dark); }
-  .kpi-card.good .num{ color:var(--sage-dark); }
+  /* Dashboard stats */
+  .statsgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(37,31,22,.08);}
+  @media (max-width:560px){.statsgrid{grid-template-columns:repeat(2,1fr);}}
+  .statcell{background:var(--surface); padding:14px 12px;}
+  .statcell .slabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin-bottom:4px;}
+  .statcell .sval{font-family:'Oswald',sans-serif; font-size:22px; font-weight:600;}
+  .statcell.warn .sval{color:var(--warn);}
+  .statcell.danger .sval{color:var(--danger);}
+  .statcell.ready .sval{color:var(--ready);}
 
-  section{ padding:14px 20px; }
-  .section-title{
-    font-size:12px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-soft);
-    font-weight:600; margin-bottom:10px;
-  }
+  .partreadout{display:flex; gap:var(--sp-3); margin-bottom:var(--sp-4); flex-wrap:wrap;}
+  .pr-item{flex:1; min-width:100px; background:var(--surface-sunk); border-radius:8px; padding:10px 12px;}
+  .pr-item .plabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);}
+  .pr-item .pval{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
+  .badge{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;}
+  .badge.ready{background:var(--ready-bg); color:var(--ready);}
+  .badge.warn{background:var(--warn-bg); color:var(--warn);}
+  .badge.danger{background:var(--danger-bg); color:var(--danger);}
 
-  /* quick actions */
-  .quick-actions{ display:flex; gap:10px; }
-  .quick-actions .btn{ padding:14px 10px; font-size:13px; }
-  .icon{ font-size:16px; line-height:1; }
+  /* Banners */
+  .banner{
+    padding:12px 16px; border-radius:9px; font-size:13.5px; font-weight:600; margin-bottom:var(--sp-4);
+    display:none; align-items:center; gap:8px;
+  }
+  .banner.show{display:flex;}
+  .banner.err{background:var(--danger-bg); color:var(--danger);}
+  .banner.ok{background:var(--ready-bg); color:var(--ready);}
+  .banner.info{background:#DEEAF3; color:#245374;}
 
-  /* asset tag plate */
-  .asset-plate{
-    position:relative; background:linear-gradient(180deg,#EFE8D6,#E2D9BE);
-    border:1px solid rgba(36,31,26,0.22); border-radius:10px; padding:16px 16px 14px;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.5), 0 3px 10px rgba(36,31,26,0.14);
+  /* Recent entries */
+  .recentlist{display:flex; flex-direction:column; gap:8px;}
+  .recentitem{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface-sunk);
+    border-radius:8px; font-size:13px;
   }
-  .asset-plate .rivet{ background:radial-gradient(circle at 35% 35%, #fff, #9c9484 70%, #6b6353 100%); }
-  .asset-plate .top-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-  .asset-plate .asset-id{ font-size:20px; font-weight:600; letter-spacing:0.03em; }
-  .asset-plate .asset-name{ font-size:13.5px; color:var(--ink-soft); margin-top:2px; }
-  .status-badge{
-    font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600;
-    padding:4px 9px; border-radius:20px; white-space:nowrap;
-  }
-  .status-badge.op{ background:rgba(78,98,72,0.16); color:var(--sage-dark); }
-  .status-badge.need{ background:rgba(184,128,30,0.18); color:var(--ochre-dark); }
-  .status-badge.down{ background:rgba(124,46,21,0.16); color:var(--rust-dark); }
-  .asset-plate .meta-row{
-    display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-top:12px; font-size:12.5px;
-  }
-  .asset-plate .meta-row .k{ color:var(--ink-soft); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; }
-  .asset-plate .meta-row .v{ font-weight:500; margin-top:1px; }
-  .empty-plate{
-    border:1.5px dashed var(--card-line); border-radius:10px; padding:22px 16px; text-align:center;
-    color:var(--ink-soft); font-size:13.5px; line-height:1.5;
-  }
+  .recentitem .rtag{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .recentitem .rmeta{color:var(--ink-soft); flex:1;}
+  .syncbadge{font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap;}
+  .syncbadge.sent{background:var(--ready-bg); color:var(--ready);}
+  .syncbadge.queued{background:var(--warn-bg); color:var(--warn);}
+  .syncbadge.failed{background:var(--danger-bg); color:var(--danger);}
+  .empty{color:var(--ink-soft); font-size:13.5px; font-style:italic;}
 
-  /* asset lookup list */
-  .asset-search{ margin-bottom:10px; }
-  .asset-list{ max-height:230px; overflow-y:auto; border:1px solid var(--card-line); border-radius:10px; background:var(--card); }
-  .asset-row{
-    width:100%; text-align:left; background:none; border:none; padding:11px 13px;
-    display:flex; justify-content:space-between; align-items:center; gap:8px; cursor:pointer;
-    border-bottom:1px solid var(--card-line); font-size:13.5px;
+  /* Action bar */
+  .actionbar{
+    position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1.5px solid var(--line);
+    padding:12px var(--sp-4); display:flex; gap:10px; z-index:50; box-shadow:0 -4px 16px rgba(37,31,22,.08);
   }
-  .asset-row:last-child{ border-bottom:none; }
-  .asset-row:hover{ background:var(--canvas-deep); }
-  .asset-row .aid{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
-  .asset-row .aname{ color:var(--ink-soft); font-size:12px; }
+  .actionbar .spacer{flex:1;}
+  button.btn{
+    height:var(--tap); border-radius:9px; font-family:'Oswald',sans-serif; font-size:14.5px;
+    letter-spacing:.04em; text-transform:uppercase; font-weight:600; cursor:pointer; border:none;
+    padding:0 20px;
+  }
+  .btn-primary{background:var(--rust); color:#fff; flex:2;}
+  .btn-primary:active{background:var(--rust-dark);}
+  .btn-primary:disabled{background:#C9BFA6; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1.5px solid var(--line); flex:1;}
+  .btn-sync{background:var(--pasture); color:#fff;}
 
-  /* work order form */
-  .form-card{
-    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
-    padding:18px 16px; box-shadow:0 2px 8px rgba(36,31,26,0.08);
-  }
+  .searchwrap{display:flex; gap:8px;}
+  .searchwrap input{flex:1;}
+  .searchwrap button{width:52px; height:var(--tap); border-radius:8px; border:1.5px solid var(--pasture);
+    background:var(--pasture); color:#fff; font-size:18px; cursor:pointer;}
 
-  /* ---- work order pad (redesigned Log Work Order card) ---- */
-  .wo-pad{
-    background:var(--card); border:1px solid var(--card-line); border-radius:12px;
-    overflow:hidden; box-shadow:0 2px 8px rgba(36,31,26,0.08);
-  }
-  .wo-pad-band{
-    position:relative; background:linear-gradient(180deg, var(--ink) 0%, #171310 100%);
-    color:#F4E9D8; text-align:center; padding:14px 16px 12px;
-    border-bottom:3px double rgba(244,233,216,0.4);
-  }
-  .wo-pad-title{ font-family:'Oswald', sans-serif; font-size:15px; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; }
-  .wo-pad-sub{ font-size:10px; text-transform:uppercase; letter-spacing:0.09em; opacity:0.75; margin-top:3px; }
+  .loadingnote{font-size:12.5px; color:var(--ink-soft); padding:2px 4px 10px;}
 
-  .wo-strip{ display:flex; border-bottom:1px dashed var(--card-line); }
-  .wo-strip-item{ flex:1; min-width:0; padding:10px 14px; }
-  .wo-strip-item + .wo-strip-item{ border-left:1px dashed var(--card-line); }
-  .wo-strip .k, .wo-block > .k{
-    font-size:9.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-soft);
-    font-weight:600; margin-bottom:4px;
+  /* ---------- Login screen ---------- */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:var(--sp-4);
   }
-  .wo-strip .v{ font-size:13.5px; font-weight:600; }
-  .wo-strip .v.mono{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; }
-  .wo-inline-input{
-    width:100%; border:none; border-bottom:1.5px solid var(--card-line); background:transparent;
-    padding:2px 0 3px; font-size:13.5px; font-weight:600; color:var(--ink); font-family:inherit;
+  .loginbox{
+    width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); overflow:hidden;
   }
-  .wo-inline-input:focus-visible{ outline:none; border-bottom-color:var(--rust); }
-  .wo-inline-input::placeholder{ font-weight:400; color:var(--ink-soft); }
-
-  .wo-block{ padding:12px 16px; }
-  .wo-body{ padding:14px 16px 4px; }
-  .wo-divider{ border-top:1px dashed var(--card-line); margin:0 16px; }
-
-  .wo-asset-line{
-    background:var(--canvas); border:1px solid var(--card-line); border-radius:8px;
-    padding:10px 12px; font-size:13px; line-height:1.4;
+  .loginbox .lhead{
+    background:var(--pasture); color:#fff; padding:var(--sp-5) var(--sp-4); text-align:center;
   }
-  .wo-asset-line .aid{ font-family:'IBM Plex Mono', monospace; font-weight:700; }
-  .wo-asset-line .amissing{ color:var(--ink-soft); font-style:italic; }
-
-  .priority-tag{
-    font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;
-    padding:2px 7px; border-radius:20px; white-space:nowrap;
+  .loginbox .lhead .ticon{font-size:30px; margin-bottom:6px;}
+  .loginbox .lhead h1{font-size:20px; color:#fff;}
+  .loginbox .lhead .sub{font-size:11.5px; color:#C9D6BE; text-transform:uppercase; letter-spacing:.08em; margin-top:4px;}
+  .loginbox .lbody{padding:var(--sp-4);}
+  .pinpad{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px;}
+  .pinpad button{
+    height:48px; border-radius:8px; border:1.5px solid var(--line); background:#fff;
+    font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; cursor:pointer; color:var(--ink);
   }
-  .priority-tag.low{ background:rgba(78,98,72,0.16); color:var(--sage-dark); }
-  .priority-tag.medium{ background:rgba(184,128,30,0.18); color:var(--ochre-dark); }
-  .priority-tag.high{ background:rgba(168,67,31,0.18); color:var(--rust); }
-  .priority-tag.emergency{ background:var(--rust-dark); color:#F9F2E7; }
-
-  .wo-grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
-  .wo-sig .wo-sig-line{
-    font-family:'Oswald', sans-serif; font-style:italic; font-size:16px; font-weight:600;
-    padding-bottom:6px; border-bottom:1.5px solid var(--ink); min-height:20px;
-  }
-
-  .chip-option{
-    border:1.5px solid var(--card-line); background:#fff; border-radius:8px;
-    padding:11px 8px; font-size:12.5px; text-align:center; cursor:pointer; font-weight:500;
-    line-height:1.3; transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-  }
-  .chip-option.selected{
-    border-color:var(--rust); border-width:2px; background:var(--rust); color:#F9F2E7; font-weight:700;
-    box-shadow:0 2px 6px rgba(168,67,31,0.35);
-  }
-  .chip-option.selected::before{ content:"✓ "; }
-  .chip-option:hover{ border-color:var(--rust); }
-
-  .parts-list{ display:flex; flex-direction:column; gap:8px; }
-  .part-row{
-    display:flex; align-items:center; gap:10px; border:1.5px solid var(--card-line);
-    border-radius:8px; padding:9px 10px; background:#fff; cursor:pointer;
-  }
-  .part-row.selected{ border-color:var(--rust); background:rgba(168,67,31,0.06); }
-  .part-row input[type=checkbox]{ width:18px; height:18px; flex:0 0 auto; accent-color:var(--rust); }
-  .part-row .pname{ flex:1; font-size:13.5px; }
-  .part-row .stock-tag{ font-size:10.5px; color:var(--ink-soft); }
-  .part-row .stock-tag.low{ color:var(--ochre-dark); font-weight:600; }
-  .qty-stepper{ display:flex; align-items:center; gap:6px; }
-  .qty-stepper button{
-    width:26px; height:26px; border-radius:6px; border:1px solid var(--card-line); background:var(--canvas);
-    font-size:15px; line-height:1; cursor:pointer;
-  }
-  .qty-stepper input{ width:34px; text-align:center; padding:5px 2px; font-size:13px; }
-  .no-parts-note{ font-size:12.5px; color:var(--ink-soft); padding:8px 2px; }
-
-  .status-toggle{ display:flex; gap:8px; }
-  .status-toggle .chip-option{ flex:1; }
-
-  .damage-flag{
-    margin-top:10px; display:flex; align-items:flex-start; gap:9px; background:rgba(124,46,21,0.07);
-    border:1px solid rgba(124,46,21,0.25); border-radius:8px; padding:10px 11px;
-  }
-  .damage-flag input{ margin-top:2px; width:17px; height:17px; accent-color:var(--rust-dark); }
-  .damage-flag .txt{ font-size:12.5px; line-height:1.45; color:var(--rust-dark); }
-  .damage-flag .txt b{ display:block; font-size:13px; margin-bottom:2px; }
-
-  .field-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:5px; }
-  .required-mark{ color:var(--rust); }
-
-  .photo-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px; }
-  .photo-thumb{ position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:1px solid var(--card-line); background:var(--canvas-deep); }
-  .photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .photo-thumb .rm{
-    position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%;
-    background:rgba(36,31,26,0.75); color:#F4E9D8; border:none; font-size:12px; line-height:1; cursor:pointer;
-  }
-  .photo-count-note{ font-size:11.5px; margin-top:6px; color:var(--ink-soft); }
-  .photo-count-note.ok{ color:var(--sage-dark); }
-
-  /* recent log */
-  .log-list{ display:flex; flex-direction:column; gap:8px; }
-  .log-item{
-    background:var(--card); border:1px solid var(--card-line); border-radius:9px; padding:10px 12px;
-    font-size:12.5px;
-  }
-  .log-item .row1{ display:flex; justify-content:space-between; gap:8px; }
-  .log-item .lid{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
-  .log-item .wtype{ color:var(--ink-soft); }
-  .log-item .desc{ margin-top:4px; color:var(--ink-soft); line-height:1.4; }
-  .log-item .row2{ margin-top:6px; display:flex; justify-content:space-between; color:var(--ink-soft); font-size:11px; }
-
-  /* toast */
-  .toast{
-    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
-    background:var(--ink); color:#F4E9D8; padding:13px 18px; border-radius:10px;
-    box-shadow:0 8px 22px rgba(0,0,0,0.35); font-size:13.5px; max-width:90vw;
-    opacity:0; pointer-events:none; transition:opacity 0.25s ease, transform 0.25s ease;
-    z-index:80; display:flex; align-items:center; gap:10px;
-  }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-  .toast .stamp{ font-family:'IBM Plex Mono', monospace; background:var(--rust); padding:3px 7px; border-radius:5px; font-size:11px; }
-
-  /* scan modal */
-  .modal-backdrop{
-    position:fixed; inset:0; background:rgba(36,31,26,0.62); display:none;
-    align-items:center; justify-content:center; z-index:90; padding:20px;
-  }
-  .modal-backdrop.show{ display:flex; }
-  .modal-card{
-    background:var(--card); border-radius:14px; padding:18px; width:100%; max-width:380px;
-    box-shadow:0 12px 34px rgba(0,0,0,0.4);
-  }
-  .modal-card h3{ font-size:16px; text-transform:uppercase; margin-bottom:10px; }
-  .modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:4px; }
-  .modal-head h3{ margin-bottom:0; }
-  .modal-x{
-    flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--card-line);
-    background:var(--canvas); color:var(--ink); font-size:16px; line-height:1; cursor:pointer;
-  }
-  .modal-x:hover{ background:var(--canvas-deep); }
-  .scan-video-wrap{
-    background:#000; border-radius:10px; overflow:hidden; aspect-ratio:1/1; position:relative;
-    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
-  }
-  .scan-video-wrap video{ width:100%; height:100%; object-fit:cover; }
-  .scan-frame{
-    position:absolute; inset:14%; border:2.5px solid #F4E9D8; border-radius:10px; opacity:0.85;
-  }
-  .scan-fallback{ color:#F4E9D8; font-size:12.5px; text-align:center; padding:0 18px; line-height:1.5; }
-  .modal-actions{ display:flex; gap:8px; margin-top:4px; }
-
-  footer.credit{
-    text-align:center; font-size:11px; color:var(--ink-soft); padding:22px 20px 10px; line-height:1.6;
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .toast{ transition:none; }
-  }
-
-  @media (min-width:520px){
-    .login-screen{ padding-top:80px; }
+  .pinpad button:active{background:var(--surface-sunk);}
+  .pindisplay{
+    font-family:'IBM Plex Mono',monospace; font-size:22px; letter-spacing:8px; text-align:center;
+    height:var(--tap); border:1.5px solid var(--line); border-radius:8px; display:flex; align-items:center;
+    justify-content:center; background:#fff; margin-bottom:6px;
   }
 </style>
 </head>
 <body>
 
-<!-- ======================= LOGIN ======================= -->
-<div id="loginScreen" class="login-screen">
-  <div class="tag-header" style="border-radius:12px; margin-bottom:22px;">
-    <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
-    <div class="eyebrow">Ngapori Ranch</div>
-    <h1>RAMS</h1>
-    <div class="sub">Field Maintenance Portal</div>
-  </div>
-  <div class="login-card">
-    <h2>Clock In</h2>
-    <div class="lead">Pick your name and enter your 4-digit PIN to log work against the ranch's assets.</div>
-    <div class="field">
-      <label for="loginUser">Username</label>
-      <select id="loginUser"></select>
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="loginScreen">
+  <div class="loginbox">
+    <div class="lhead">
+      <div class="ticon">🔧</div>
+      <h1>Ngapori RAMS</h1>
+      <div class="sub">Asset &amp; Maintenance Sign-In</div>
     </div>
-    <div class="field">
-      <label for="loginPin">PIN</label>
-      <input type="password" id="loginPin" inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="••••" class="pin-dots">
+    <div class="lbody">
+      <div class="banner err" id="loginErrBanner"></div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="loginUsername" autocomplete="username" placeholder="e.g. worker1">
+      </div>
+      <div class="field">
+        <label>4-Digit PIN</label>
+        <div class="pindisplay" id="pinDisplay">••••</div>
+        <div class="pinpad" id="pinPad"></div>
+      </div>
+      <button class="btn btn-primary" id="loginBtn" style="width:100%;">Sign In</button>
+      <div class="help" style="margin-top:10px; text-align:center;">PIN is a 4-digit passcode from the USERS tab — not a real password.</div>
     </div>
-    <button class="btn btn-primary" id="loginBtn">Clock In</button>
-    <div class="error-text" id="loginError">That PIN doesn't match this user. Try again.</div>
   </div>
-  <footer class="credit">Connects to the ASSET_REGISTRY, MAINTENANCE_LOG, PARTS_INVENTORY, USERS and SETTINGS sheets in Ngapori_RAMS_v2.</footer>
 </div>
 
-<!-- ======================= APP ======================= -->
-<div id="app">
-  <div class="tag-header">
-    <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
-    <div class="eyebrow">Ngapori Ranch</div>
-    <h1>RAMS</h1>
-    <div class="sub">Field Maintenance Portal</div>
-    <div class="user-chip">
-      <div class="who">Logged in: <b id="userName">—</b><span class="role-badge" id="userRole">—</span></div>
-      <button class="logout-btn" id="logoutBtn">Log out</button>
+<!-- ============================================================
+     MAIN APP (hidden until sign-in)
+     ============================================================ -->
+<div id="appRoot" style="display:none;">
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brandmark">
+      <div class="tagicon">🔧</div>
+      <div>
+        <h1>Ngapori RAMS</h1>
+        <div class="sub">Asset &amp; Maintenance Entry</div>
+      </div>
+    </div>
+    <div class="statuspill" id="statusPill"><span class="dot"></span><span id="statusText">Online</span></div>
+  </div>
+  <div class="userrow">
+    <div class="who"><b id="userDisplayName">—</b> <span class="role" id="userRole"></span></div>
+    <button class="logoutbtn" id="logoutBtn">Sign Out</button>
+  </div>
+  <div class="modebar">
+    <button class="modebtn active" data-mode="asset" id="modeAssetBtn">Register Asset</button>
+    <button class="modebtn" data-mode="log" id="modeLogBtn">Log Maintenance</button>
+    <button class="modebtn" data-mode="part" id="modePartBtn">Restock Part</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="banner err" id="errBanner"></div>
+  <div class="banner ok" id="okBanner"></div>
+
+  <!-- ============ DASHBOARD STATS ============ -->
+  <div class="card">
+    <div class="card-head"><h2>Ranch Snapshot</h2><span class="num" id="statsAsOf">Live from Asset_Registry</span></div>
+    <div class="statsgrid">
+      <div class="statcell ready"><div class="slabel">Operational</div><div class="sval" id="statOperational">—</div></div>
+      <div class="statcell warn"><div class="slabel">Needs Service</div><div class="sval" id="statNeedsService">—</div></div>
+      <div class="statcell danger"><div class="slabel">Out of Order</div><div class="sval" id="statOutOfOrder">—</div></div>
+      <div class="statcell warn"><div class="slabel">Low Parts Alerts</div><div class="sval" id="statLowParts">—</div></div>
     </div>
   </div>
 
-  <div class="wrap">
-    <!-- KPI strip -->
-    <div class="kpi-strip" id="kpiStrip"></div>
+  <!-- ============================================================
+       MODE: REGISTER ASSET
+       ============================================================ -->
+  <div id="assetMode">
+    <div class="card" id="idCard">
+      <div class="card-head"><h2>1. Type &amp; Identity</h2><span class="num">Domain · Asset Type · ID</span></div>
+      <div class="card-body">
 
-    <!-- Quick actions -->
-    <section>
-      <div class="section-title">Quick Actions</div>
-      <div class="quick-actions">
-        <button class="btn btn-secondary" id="scanBtn"><span class="icon">▤</span> Scan Asset QR Code</button>
-        <button class="btn btn-secondary" id="lookupBtn"><span class="icon">☰</span> Manual Asset Lookup</button>
+        <div class="field">
+          <label>Domain <span class="req">*</span></label>
+          <div class="tilegroup" id="domainTiles"><div class="loadingnote">Loading asset types…</div></div>
+        </div>
+
+        <div class="field">
+          <label>Asset Type <span class="req">*</span></label>
+          <select id="assetTypeSelect"><option value="">— choose domain first —</option></select>
+          <div class="help">Drives the ID prefix (from ASSET_TYPES) automatically.</div>
+        </div>
+
+        <div class="tagbadge">
+          <div class="chip" id="assetIdChip">···-··</div>
+          <div class="note">Auto-generated on save. Type below only if replacing with a physical tag ID already in use elsewhere.</div>
+        </div>
+        <div class="field">
+          <label>Override ID (optional)</label>
+          <input type="text" id="assetIdOverride" placeholder="Leave blank to auto-generate">
+        </div>
+
+        <div class="field">
+          <label>Asset Name <span class="req">*</span></label>
+          <input type="text" id="assetNameInput" placeholder="e.g. John Deere 5075E Tractor">
+        </div>
+
       </div>
-      <button class="btn btn-secondary" id="registerBtn" style="margin-top:8px;"><span class="icon">+</span> Register New Asset</button>
-      <div id="assetLookupPanel" style="display:none; margin-top:10px;">
-        <div class="asset-search">
-          <input type="text" id="assetSearchInput" placeholder="Search by name or ID…">
+    </div>
+
+    <div class="card" id="detailCard">
+      <div class="card-head"><h2>2. Location &amp; Status</h2><span class="num">Location · Status</span></div>
+      <div class="card-body">
+
+        <div class="field">
+          <label>Location</label>
+          <input type="text" id="locationInput" list="locationList" placeholder="e.g. Equipment Yard">
+          <datalist id="locationList"></datalist>
         </div>
-        <div class="field" style="margin-bottom:8px;">
-          <select id="assetCategoryFilter"></select>
+
+        <div class="field">
+          <label>Status</label>
+          <div class="tilegroup three" id="statusTiles"></div>
         </div>
-        <div class="asset-list" id="assetLookupList"></div>
+
       </div>
-    </section>
+    </div>
 
-    <!-- Selected asset -->
-    <section>
-      <div class="section-title">Selected Asset</div>
-      <div id="assetPlateHolder">
-        <div class="empty-plate">No asset selected yet. Scan a QR code or use Manual Asset Lookup to choose one.</div>
-      </div>
-    </section>
+    <div class="card" id="serviceCard">
+      <div class="card-head"><h2>3. Service &amp; Cost</h2><span class="num">Interval · Last Serviced · Price</span></div>
+      <div class="card-body">
 
-    <!-- Work order form -->
-    <section>
-      <div class="section-title">Log Work Order</div>
-      <div class="wo-pad">
-
-        <div class="wo-pad-band">
-          <div class="wo-pad-title">Ranch Work Order</div>
-          <div class="wo-pad-sub">Ngapori Field Maintenance</div>
-        </div>
-
-        <div class="wo-strip">
-          <div class="wo-strip-item">
-            <div class="k">Work Order #</div>
-            <div class="v mono" id="woNumber">Assigned on submit</div>
-          </div>
-          <div class="wo-strip-item">
-            <div class="k">Date</div>
-            <div class="v mono" id="woDate">—</div>
-          </div>
-        </div>
-        <div class="wo-strip">
-          <div class="wo-strip-item">
-            <div class="k">Requested By</div>
-            <div class="v" id="woRequestedBy">—</div>
-          </div>
-          <div class="wo-strip-item">
-            <label for="woAssignedTo" class="k">Assigned To</label>
-            <input type="text" id="woAssignedTo" class="wo-inline-input" placeholder="Crew member name">
-          </div>
-        </div>
-
-        <div class="wo-block">
-          <label for="prioritySelect" class="k">Priority <span class="required-mark">*</span></label>
-          <select id="prioritySelect"></select>
-        </div>
-
-        <div class="wo-divider"></div>
-
-        <div class="wo-block">
-          <div class="k">Asset Information</div>
-          <div class="wo-asset-line" id="woAssetLine"><span class="amissing">No asset selected — scan or look one up above.</span></div>
-        </div>
-
-        <div class="wo-divider"></div>
-
-        <div class="wo-body">
+        <div class="row2">
           <div class="field">
-            <label for="descriptionInput">Description of Problem <span class="required-mark">*</span></label>
-            <textarea id="descriptionInput" placeholder="What's wrong, or what needs doing? Be specific — this becomes the permanent audit record."></textarea>
-          </div>
-
-          <div class="field">
-            <label for="workTypeSelect">Work Type <span class="required-mark">*</span></label>
-            <select id="workTypeSelect"></select>
-          </div>
-
-          <div class="field">
-            <label>Parts / Materials Needed</label>
-            <div class="parts-list" id="partsList"></div>
-            <textarea id="materialsNoteInput" placeholder="Describe any part or material needed that isn't in the list above — e.g. &quot;2x 5/16&quot; fence staples, box of gorilla tape, replacement mower belt (not in PARTS_INVENTORY yet).&quot; This goes on the work order even if nothing is deducted from inventory." style="margin-top:8px; min-height:64px;"></textarea>
-          </div>
-        </div>
-
-        <div class="wo-divider"></div>
-
-        <div class="wo-body">
-          <div class="field">
-            <label for="workPerformedInput">Work Performed</label>
-            <textarea id="workPerformedInput" placeholder="What was actually done to resolve it (leave blank if still open)."></textarea>
-          </div>
-
-          <div class="field">
-            <label for="statusSelect">Work Status <span class="required-mark">*</span></label>
-            <select id="statusSelect"></select>
-          </div>
-
-          <div class="field">
-            <label>Serviced By <span class="required-mark">*</span></label>
-            <div class="status-toggle" id="servicedByToggle"></div>
-            <input type="text" id="vendorNameInput" placeholder="Vendor / shop name" style="display:none; margin-top:8px;">
-          </div>
-
-          <div class="damage-flag" id="damageFlagRow" style="display:none;">
-            <input type="checkbox" id="markOutOfOrder">
-            <label for="markOutOfOrder" class="txt">
-              <b>Mark asset Out of Order</b>
-              Updates ASSET_REGISTRY immediately and pulls this asset off the operational count on the dashboard.
-            </label>
-          </div>
-        </div>
-
-        <div class="wo-divider"></div>
-
-        <div class="wo-block">
-          <div class="k">Labor & Completion</div>
-          <div class="wo-grid-2">
-            <div class="field">
-              <label for="hoursInput">Total Hours</label>
-              <input type="number" id="hoursInput" min="0" step="0.25" placeholder="0.0">
-            </div>
-            <div class="field">
-              <label for="completedDateInput">Completed Date</label>
-              <input type="date" id="completedDateInput">
+            <label>Service Interval (days)</label>
+            <div class="weightrow">
+              <div class="stepgroup">
+                <button class="stepbtn" type="button" data-step="-30" data-target="serviceInterval">−30</button>
+              </div>
+              <input type="number" id="serviceIntervalInput" inputmode="numeric" placeholder="90">
+              <div class="stepgroup">
+                <button class="stepbtn" type="button" data-step="30" data-target="serviceInterval">+30</button>
+              </div>
             </div>
           </div>
           <div class="field">
-            <label for="costInput">Cost (USD)</label>
-            <input type="number" id="costInput" min="0" step="0.01" value="0.00">
+            <label>Last Serviced</label>
+            <input type="date" id="lastServicedInput">
           </div>
         </div>
 
-        <div class="wo-divider"></div>
+        <div class="field">
+          <label>Purchase Price (USD)</label>
+          <input type="number" id="purchasePriceInput" step="0.01" inputmode="decimal" placeholder="0">
+        </div>
 
-        <div class="wo-block">
-          <div class="wo-grid-2">
-            <div class="wo-sig">
-              <div class="k">Worker Signature</div>
-              <div class="wo-sig-line" id="woWorkerSig">—</div>
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label for="managerSignoffInput">Manager Sign-off</label>
-              <input type="text" id="managerSignoffInput" placeholder="Optional — name/initials">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODE: LOG MAINTENANCE
+       ============================================================ -->
+  <div id="logMode" style="display:none;">
+    <div class="card">
+      <div class="card-head"><h2>1. Asset</h2><span class="num">Asset_ID</span></div>
+      <div class="card-body">
+        <div class="field ac-wrap">
+          <label>Asset ID <span class="req">*</span></label>
+          <input type="text" id="logAssetIdInput" placeholder="Type to search asset ID or name" autocomplete="off">
+          <div class="ac-list" id="logAssetAcList"></div>
+        </div>
+        <div class="partreadout" id="logAssetReadout" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>2. Work Details</h2><span class="num">Type · Description · Cost</span></div>
+      <div class="card-body">
+
+        <div class="field">
+          <label>Work Type <span class="req">*</span></label>
+          <div class="chiprow" id="workTypeChips"><div class="loadingnote">Loading work types…</div></div>
+        </div>
+
+        <div class="field">
+          <label>Description</label>
+          <textarea id="logDescriptionInput" placeholder="What was done, found, or needs attention"></textarea>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Cost (USD)</label>
+            <input type="number" id="logCostInput" step="0.01" inputmode="decimal" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <div class="chiprow" id="logStatusChips">
+              <div class="chip active" data-status="Open">Open</div>
+              <div class="chip" data-status="In Progress">In Progress</div>
+              <div class="chip" data-status="Completed">Completed</div>
             </div>
           </div>
         </div>
 
-        <div class="wo-body" style="padding-top:6px;">
-          <div class="field-hint" style="margin-top:0; margin-bottom:10px;">
-            On submit, RAMS stamps the Work Order #, timestamp, your name and role automatically.
+        <div class="checkline" id="closeByManagerWrap" style="display:none;">
+          <input type="checkbox" id="closeByManagerCheck">
+          <label for="closeByManagerCheck" style="margin:0;">Close this out as manager (marks Completed, stamps my name)</label>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>3. Reported By</h2><span class="num">Auto-filled from sign-in</span></div>
+      <div class="card-body">
+        <div class="row2">
+          <div class="field">
+            <label>Reported By</label>
+            <input type="text" id="logReportedByDisplay" readonly>
           </div>
-          <button class="btn btn-primary" id="submitBtn" disabled>Submit Work Order</button>
+          <div class="field">
+            <label>Role</label>
+            <input type="text" id="logRoleDisplay" readonly>
+          </div>
         </div>
       </div>
-    </section>
-
-    <!-- Recent log -->
-    <section>
-      <div class="section-title">Recent Entries</div>
-      <div class="log-list" id="recentLog"></div>
-    </section>
-
-    <footer class="credit" id="modeFooter">—</footer>
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast">
-  <span class="stamp" id="toastStamp">LOG-0000</span>
-  <span id="toastMsg">Work order logged.</span>
-</div>
-
-<!-- QR Scan modal -->
-<div class="modal-backdrop" id="scanModal">
-  <div class="modal-card">
-    <div class="modal-head">
-      <h3>Scan Asset QR Code</h3>
-      <button type="button" class="modal-x" id="scanCloseX" aria-label="Close">×</button>
-    </div>
-    <div class="scan-video-wrap" id="scanVideoWrap">
-      <div class="scan-fallback" id="scanFallback">Starting camera…</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="scanCancelBtn">Cancel</button>
     </div>
   </div>
-</div>
 
-<!-- Register New Asset modal -->
-<div class="modal-backdrop" id="registerModal">
-  <div class="modal-card" style="max-width:420px; max-height:88vh; overflow-y:auto;">
-    <div class="modal-head">
-      <h3>Register New Asset</h3>
-      <button type="button" class="modal-x" id="regCloseX" aria-label="Close">×</button>
-    </div>
-    <div class="field">
-      <label for="regAssetId">Ranch Asset ID <span class="required-mark">*</span></label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="regAssetId" placeholder="e.g. TRAC-02" style="flex:1;">
-        <button type="button" class="btn btn-secondary" id="regAutoIdBtn" style="width:auto; padding:0 14px; white-space:nowrap;">Auto-Generate</button>
+  <!-- ============================================================
+       MODE: RESTOCK PART
+       ============================================================ -->
+  <div id="partMode" style="display:none;">
+    <div class="card">
+      <div class="card-head"><h2>1. Find Part</h2><span class="num">Part_Name</span></div>
+      <div class="card-body">
+        <div class="field ac-wrap">
+          <label>Part <span class="req">*</span></label>
+          <input type="text" id="partNameInput" placeholder="Type to search parts" autocomplete="off">
+          <div class="ac-list" id="partAcList"></div>
+        </div>
+        <div class="partreadout" id="partReadout" style="display:none;"></div>
       </div>
-      <div class="field-hint">Your ranch's own tag — this is what QR codes and the maintenance log use to identify it. Auto-Generate suggests the next ID for the chosen asset type based on the live sheet.</div>
     </div>
-    <div class="field">
-      <label for="regAssetName">Asset Name <span class="required-mark">*</span></label>
-      <input type="text" id="regAssetName" placeholder="e.g. Kubota RTV Utility Vehicle">
-    </div>
-    <div class="field">
-      <label>Date Created</label>
-      <div class="textlike mono" id="regDateCreated" style="background:var(--canvas); color:var(--ink-soft);">—</div>
-      <div class="field-hint">Stamped automatically the moment you save this asset — not editable.</div>
-    </div>
-    <div class="field">
-      <label for="regCategory">Domain <span class="required-mark">*</span></label>
-      <select id="regCategory"></select>
-    </div>
-    <div class="field">
-      <label for="regAssetType">Asset Type <span class="required-mark">*</span></label>
-      <select id="regAssetType"></select>
-      <div class="field-hint">Sets the ID prefix used by Auto-Generate (e.g. Tractor → EQ-TRACTOR-01).</div>
-    </div>
-    <div class="field">
-      <label for="regManufacturer">Manufacturer</label>
-      <input type="text" id="regManufacturer" placeholder="e.g. John Deere, Kubota, Case IH">
-    </div>
-    <div class="field">
-      <label for="regLocation">Location</label>
-      <input type="text" id="regLocation" placeholder="e.g. Equipment Yard">
-    </div>
-    <div class="field">
-      <label for="regIdNumber" id="regIdLabel">Manufacturer Serial Number</label>
-      <input type="text" id="regIdNumber" placeholder="e.g. serial or ID plate number">
-      <div class="field-hint">Vehicles ask for a VIN; other equipment uses whatever ID is stamped on it — a serial number, model tag, or asset plate number.</div>
-    </div>
-    <div class="field">
-      <label for="regServiceInterval">Service Interval (days)</label>
-      <input type="number" id="regServiceInterval" min="1" value="90">
-    </div>
-    <div class="field">
-      <label for="regLastServiced">Last Serviced</label>
-      <input type="date" id="regLastServiced">
-    </div>
-    <div class="field">
-      <label for="regPurchasePrice">Purchase Price (USD)</label>
-      <input type="number" id="regPurchasePrice" min="0" step="0.01" value="0.00">
-    </div>
-    <div class="field">
-      <label for="regStatus">Status</label>
-      <select id="regStatus"></select>
-    </div>
-    <div class="field">
-      <label>Asset Photos <span class="required-mark">*</span></label>
-      <div class="field-hint" style="margin-top:0; margin-bottom:8px;">Add at least 3 — wide shot, close-up of any ID plate or VIN, and anything worth documenting now (dents, wear, accessories).</div>
-      <input type="file" id="regPhotoInput" accept="image/*" capture="environment" multiple style="display:none;">
-      <button type="button" class="btn btn-secondary" id="regAddPhotoBtn"><span class="icon">📷</span> Add Photos</button>
-      <div class="photo-grid" id="regPhotoGrid"></div>
-    </div>
-    <div class="error-text" id="regError"></div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="regCancelBtn">Cancel</button>
-      <button class="btn btn-primary" id="regSubmitBtn">Add Asset</button>
+
+    <div class="card">
+      <div class="card-head"><h2>2. Adjust Stock</h2><span class="num">On_Hand</span></div>
+      <div class="card-body">
+        <div class="field">
+          <label>Adjustment (+ received / − used)</label>
+          <div class="weightrow">
+            <div class="stepgroup">
+              <button class="stepbtn" type="button" data-step="-10" data-target="partDelta">−10</button>
+              <button class="stepbtn" type="button" data-step="-1" data-target="partDelta">−1</button>
+            </div>
+            <input type="number" id="partDeltaInput" inputmode="numeric" placeholder="0">
+            <div class="stepgroup">
+              <button class="stepbtn" type="button" data-step="1" data-target="partDelta">+1</button>
+              <button class="stepbtn" type="button" data-step="10" data-target="partDelta">+10</button>
+            </div>
+          </div>
+          <div class="help" id="partNewTotalHelp"></div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- ============ RECENT ENTRIES ============ -->
+  <div class="card">
+    <div class="card-head"><h2>Recent This Session</h2><span class="num" id="queueCount"></span></div>
+    <div class="card-body">
+      <div class="recentlist" id="recentList"><div class="empty">Nothing logged yet this session.</div></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="actionbar">
+  <button class="btn btn-ghost" id="resetBtn">Reset</button>
+  <div class="spacer"></div>
+  <button class="btn btn-sync" id="syncBtn" style="display:none;">Sync Queue</button>
+  <button class="btn btn-primary" id="saveBtn">Save Asset</button>
 </div>
+
+</div><!-- /appRoot -->
 
 <script>
-(function(){
+/* ============================================================
+   CONFIG — published-CSV sources (Ngapori RAMS) and the Apps
+   Script Web App URL for code_rams.gs. Paste the /exec URL below
+   once code_rams.gs is deployed.
+   ============================================================ */
+const CONFIG = {
+  ASSET_REGISTRY_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=827432641&single=true&output=csv',
+  MAINTENANCE_LOG_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=548316161&single=true&output=csv',
+  PARTS_INVENTORY_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1759849016&single=true&output=csv',
+  CAPEX_PLAN_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1651068684&single=true&output=csv',
+  USERS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=346021084&single=true&output=csv',
+  SETTINGS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1074991317&single=true&output=csv',
+  ASSET_TYPES_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1482700792&single=true&output=csv',
+  APPS_SCRIPT_URL: 'PASTE_YOUR_CODE_RAMS_DEPLOYMENT_URL_HERE',
+  QUEUE_KEY: 'ngapori_rams_offline_queue_v1'
+};
 
-  /* =========================================================================
-     DATA LAYER
-     — When this file is served by Apps Script (HtmlService), window.google.script.run
-       talks to Code.gs, which reads/writes the live Ngapori_RAMS_v2 sheet.
-     — When opened directly as a plain HTML file (e.g. for preview), it falls back to
-       an in-memory demo mode seeded with the same sample data as the workbook, so the
-       whole flow is still click-through-able without a deployment.
-  ========================================================================= */
+/* ============================================================
+   STATIC FALLBACKS (used only if a CSV fetch fails/offline)
+   ============================================================ */
+const FALLBACK_STATUS_OPTIONS = ['Operational', 'Needs Service', 'Out of Order'];
+const FALLBACK_WORK_TYPES = ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'];
+const FALLBACK_DEFAULT_INTERVAL = 90;
 
-  var HAS_BACKEND = (typeof google !== 'undefined' && google.script && google.script.run);
+const DOMAIN_GLYPH = {
+  'Equipment': '🚜', 'Infrastructure': '🏗️', 'Water System': '💧', 'Feed System': '🌾',
+  'Poultry Tractor': '🐔', 'Security Checkpoint': '🔒', 'Harvest System': '🌽', 'Inventory': '📦'
+};
+function domainGlyph(d){ return DOMAIN_GLYPH[d] || '🔧'; }
 
-  var DEMO_ASSET_TYPES = [
-    { domain: 'Equipment', type: 'Tractor', prefix: 'EQ-TRACTOR', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'UTV', prefix: 'EQ-UTV', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Generator', prefix: 'EQ-GEN', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Seeder', prefix: 'EQ-SEEDER', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Solar Array', prefix: 'EQ-SOLAR', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Water Pump', prefix: 'EQ-PUMP', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Portable Water Tank', prefix: 'EQ-TANK', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Livestock Scale', prefix: 'EQ-SCALE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Fence Line', prefix: 'INF-FENCE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Gate', prefix: 'INF-GATE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Energizer', prefix: 'INF-ENERGIZER', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Hydrant', prefix: 'INF-HYDRANT', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Water Line (Utility Check)', prefix: 'INF-WATERLINE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Barn', prefix: 'INF-BARN', suffixStyle: 'alpha' },
-    { domain: 'Infrastructure', type: 'Storage Shed', prefix: 'INF-SHED', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Hay Barn', prefix: 'INF-HAYBARN', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Tank', prefix: 'WATER-TANK', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Trough', prefix: 'WATER-TROUGH', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Frost-Free Hydrant', prefix: 'WATER-HYDRANT', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Irrigation Pump', prefix: 'WATER-PUMP', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Line (Forage/Irrigation)', prefix: 'WATER-LINE', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Feed Bin', prefix: 'FEED-BIN', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Feed Hopper', prefix: 'FEED-HOPPER', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Mineral Feeder', prefix: 'FEED-MINERAL', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Fertilizer Storage', prefix: 'FEED-FERT', suffixStyle: 'numeric' },
-    { domain: 'Poultry Tractor', type: 'Poultry Tractor', prefix: 'PT-TRACTOR', suffixStyle: 'numeric' },
-    { domain: 'Security Checkpoint', type: 'Checkpoint', prefix: 'SEC-POINT', suffixStyle: 'alpha' },
-    { domain: 'Harvest System', type: 'Harvest Bin', prefix: 'HARVEST-BIN', suffixStyle: 'numeric' },
-    { domain: 'Harvest System', type: 'Hay Bale Lot', prefix: 'HARVEST-LOT', suffixStyle: 'numeric' },
-    { domain: 'Harvest System', type: 'Silage Pit', prefix: 'HARVEST-SILAGE', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Medicine Bottle', prefix: 'INV-MED', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Chemical', prefix: 'INV-CHEM', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Tool', prefix: 'INV-TOOL', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Spare Part', prefix: 'INV-PART', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Feed Bag', prefix: 'INV-FEED', suffixStyle: 'numeric' }
-  ];
-  var DEMO_DOMAIN_OPTIONS = (function(){
-    var seen = [], out = [];
-    DEMO_ASSET_TYPES.forEach(function(t){ if (seen.indexOf(t.domain) === -1){ seen.push(t.domain); out.push(t.domain); } });
+/* ============================================================
+   STATE
+   ============================================================ */
+let state = {
+  online: navigator.onLine,
+  user: null,               // {username, displayName, role}
+  mode: 'asset',
+  assetTypes: [],           // [{Domain,Asset_Type,Prefix,Suffix_Style}]
+  assetTypesByDomain: {},   // Domain -> [Asset_Type,...]
+  assets: [],                // Asset_Registry rows
+  parts: [],                  // Parts_Inventory rows
+  users: [],                    // Users rows (for client-side PIN check)
+  settings: { statusOptions: FALLBACK_STATUS_OPTIONS, workTypes: FALLBACK_WORK_TYPES, params: {} },
+  assetForm: emptyAssetForm(),
+  logForm: emptyLogForm(),
+  partForm: { partName: '', delta: 0 },
+  loginPin: ''
+};
+
+function emptyAssetForm(){
+  return { domain:'', assetType:'', assetIdOverride:'', assetName:'', location:'', status:'Operational',
+    serviceInterval:'', lastServiced:'', purchasePrice:'' };
+}
+function emptyLogForm(){
+  return { assetId:'', workType:'', description:'', cost:'', status:'Open', closeByManager:false };
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  buildPinPad();
+  wireLoginEvents();
+  updateOnlineStatus();
+  window.addEventListener('online', () => { updateOnlineStatus(); trySyncQueue(); });
+  window.addEventListener('offline', updateOnlineStatus);
+});
+
+/* ============================================================
+   CSV PARSING — every RAMS tab has title/instruction rows above
+   its real header, so we locate the header by a known first-
+   column marker rather than assuming line 1 is the header.
+   ============================================================ */
+function rawCsvRows(text){
+  const lines = text.replace(/\r/g,'').split('\n');
+  const parseLine = l => {
+    const out=[]; let cur=''; let q=false;
+    for(let i=0;i<l.length;i++){
+      const c=l[i];
+      if(c === '"'){ if(q && l[i+1] === '"'){cur+='"'; i++;} else q=!q; }
+      else if(c === ',' && !q){ out.push(cur); cur=''; }
+      else cur += c;
+    }
+    out.push(cur);
     return out;
-  })();
-
-  var DEMO = {
-    settings: {
-      statusOptions: ['Operational', 'Needs Service', 'Out of Order'],
-      domainOptions: DEMO_DOMAIN_OPTIONS,
-      assetTypes: DEMO_ASSET_TYPES,
-      workTypes: ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'],
-      roles: ['Ranch Worker', 'Ranch Manager', 'Executive'],
-      defaultServiceIntervalDays: 90,
-      lowStockMultiplier: 1,
-      overdueGraceDays: 0
-    },
-    users: [
-      { username: 'worker1', pin: '1234', displayName: 'J. Doe', role: 'Ranch Worker' },
-      { username: 'worker2', pin: '1234', displayName: 'R. Smith', role: 'Ranch Worker' },
-      { username: 'manager1', pin: '5678', displayName: 'M. Vance', role: 'Ranch Manager' },
-      { username: 'founder', pin: '9999', displayName: 'Founder', role: 'Executive' }
-    ],
-    assets: [
-      { assetId: 'TRAC-01', assetName: 'John Deere 5075E Tractor', category: 'Equipment', assetType: 'Tractor', location: 'Equipment Yard', status: 'Operational', serviceIntervalDays: 90, lastServiced: '2026-06-01', nextServiceDue: '2026-08-30', purchasePrice: 55000 }
-    ],
-    parts: [
-      { name: 'Tractor Oil Filter', onHand: 6, minimum: 2, status: 'OK' }
-    ]
   };
+  return lines.map(parseLine);
+}
 
-  var demoLogIdSeq = 1001;
-  var demoLog = [
-    { logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', role: 'Ranch Worker', cost: 0, status: 'Completed' }
-  ];
+function parseNamedTable(raw, markerCol0Value){
+  const idx = raw.findIndex(r => r[0] && r[0].trim() === markerCol0Value);
+  if(idx === -1) return [];
+  const header = raw[idx].map(h => h.trim());
+  return raw.slice(idx+1)
+    .map(r => { const o={}; header.forEach((h,ci) => { if(h) o[h] = (r[ci] ?? '').trim(); }); return o; })
+    .filter(o => Object.values(o).some(v => v));
+}
 
-  function backendGetInitialData(cb){
-    if (HAS_BACKEND){
-      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
-        showToast('Load failed', 'Could not reach the sheet: ' + (err && err.message ? err.message : err));
-      }).getInitialData();
-    } else {
-      setTimeout(function(){ cb({ users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings }); }, 120);
-    }
-  }
-
-  function backendAuthenticate(username, pin, cb){
-    if (HAS_BACKEND){
-      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
-        showToast('Sign-in failed', String(err));
-      }).authenticate(username, pin);
-    } else {
-      var match = DEMO.users.find(function(u){ return u.username === username && u.pin === pin; });
-      setTimeout(function(){ cb(match ? { username: match.username, displayName: match.displayName, role: match.role } : null); }, 150);
-    }
-  }
-
-  function backendSuggestAssetId(assetType, cb){
-    if (HAS_BACKEND){
-      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
-        showToast('Couldn\'t suggest ID', String(err));
-      }).suggestNextAssetId(assetType);
-    } else {
-      var typeInfo = DEMO_ASSET_TYPES.find(function(t){ return t.type === assetType; });
-      var prefix = typeInfo ? typeInfo.prefix : 'AST';
-      var suffixStyle = typeInfo ? typeInfo.suffixStyle : 'numeric';
-      var existingSuffixes = state.assets
-        .filter(function(a){ return a.assetId && a.assetId.toUpperCase().indexOf(prefix.toUpperCase() + '-') === 0; })
-        .map(function(a){ return a.assetId.substring(prefix.length + 1); });
-
-      var suggestion;
-      if (suffixStyle === 'alpha'){
-        var maxLetterCode = 'A'.charCodeAt(0) - 1;
-        existingSuffixes.forEach(function(s){
-          var m = s.match(/^([A-Za-z]+)$/);
-          if (m && m[1].length === 1){
-            var code = m[1].toUpperCase().charCodeAt(0);
-            if (code > maxLetterCode) maxLetterCode = code;
-          }
-        });
-        suggestion = prefix + '-' + String.fromCharCode(maxLetterCode + 1);
-      } else {
-        var maxNum = 0;
-        existingSuffixes.forEach(function(s){
-          var n = parseInt(s, 10);
-          if (!isNaN(n) && n > maxNum) maxNum = n;
-        });
-        var next = maxNum + 1;
-        suggestion = prefix + '-' + (next < 10 ? '0' + next : next);
-      }
-      setTimeout(function(){ cb(suggestion); }, 120);
-    }
-  }
-
-  function backendRegisterAsset(data, cb, errCb){
-    if (HAS_BACKEND){
-      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
-        if (errCb) errCb(err); else showToast('Failed', String(err));
-      }).registerAsset(data);
-    } else {
-      var exists = DEMO.assets.some(function(a){ return a.assetId.toLowerCase() === String(data.assetId).toLowerCase(); });
-      if (exists){ if (errCb) errCb('Asset ID "' + data.assetId + '" already exists in ASSET_REGISTRY.'); return; }
-      setTimeout(function(){
-        DEMO.assets.push({
-          assetId: data.assetId, assetName: data.assetName, category: data.category, assetType: data.assetType || '', location: data.location,
-          status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
-          lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
-          identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || '',
-          manufacturer: data.manufacturer || '', dateCreated: new Date().toISOString().slice(0, 10),
-          photoUrls: (data.photos || []).map(function(_, i){ return 'demo://photo-' + (i + 1); }).join(', ')
-        });
-        cb({ assetId: data.assetId, data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } });
-      }, 180);
-    }
-  }
-
-  function backendSubmitLogEntry(entry, cb){
-    if (HAS_BACKEND){
-      google.script.run.withSuccessHandler(cb).withFailureHandler(function(err){
-        showToast('Submit failed', String(err));
-      }).submitLogEntry(entry);
-    } else {
-      demoLogIdSeq += 1;
-      var logId = 'LOG-' + demoLogIdSeq;
-      var ts = new Date();
-      demoLog.unshift({
-        logId: logId, timestamp: ts.toISOString(), assetId: entry.assetId, workType: entry.workType,
-        description: entry.description, reportedBy: entry.reportedBy, role: entry.role,
-        cost: Number(entry.cost) || 0, status: entry.status
-      });
-      (entry.parts || []).forEach(function(p){
-        var part = DEMO.parts.find(function(x){ return x.name === p.name; });
-        if (part){
-          part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
-          part.status = (part.onHand <= part.minimum * DEMO.settings.lowStockMultiplier) ? 'LOW' : 'OK';
-        }
-      });
-      if (entry.markOutOfOrder){
-        var asset = DEMO.assets.find(function(a){ return a.assetId === entry.assetId; });
-        if (asset) asset.status = 'Out of Order';
-      }
-      setTimeout(function(){ cb({ logId: logId, timestamp: ts.toISOString(), data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } }); }, 180);
-    }
-  }
-
-  /* =========================================================================
-     STATE
-  ========================================================================= */
-
-  var state = {
-    settings: null,
-    users: [],
-    assets: [],
-    parts: [],
-    currentUser: null,
-    selectedAsset: null,
-    workType: null,
-    workStatus: null,
-    priority: null,
-    selectedParts: {}   // { partName: qty }
-  };
-
-  /* =========================================================================
-     LOGIN
-  ========================================================================= */
-
-  var loginUserSel = document.getElementById('loginUser');
-  var loginPinInput = document.getElementById('loginPin');
-  var loginBtn = document.getElementById('loginBtn');
-  var loginError = document.getElementById('loginError');
-
-  function populateLoginUsers(){
-    loginUserSel.innerHTML = '';
-    state.users.forEach(function(u){
-      var opt = document.createElement('option');
-      opt.value = u.username;
-      opt.textContent = u.displayName + ' — ' + u.role;
-      loginUserSel.appendChild(opt);
-    });
-  }
-
-  loginBtn.addEventListener('click', function(){
-    var username = loginUserSel.value;
-    var pin = loginPinInput.value.trim();
-    if (!username || pin.length < 4){
-      loginError.textContent = 'Enter your 4-digit PIN.';
-      loginError.classList.add('show');
-      return;
-    }
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'Checking…';
-    backendAuthenticate(username, pin, function(user){
-      loginBtn.disabled = false;
-      loginBtn.textContent = 'Clock In';
-      if (!user){
-        loginError.textContent = "That PIN doesn't match this user. Try again.";
-        loginError.classList.add('show');
-        return;
-      }
-      loginError.classList.remove('show');
-      state.currentUser = user;
-      enterApp();
-    });
+function parseSettingsCsv(text){
+  const raw = rawCsvRows(text);
+  let optHeaderIdx=-1, paramHeaderIdx=-1;
+  raw.forEach((r,i) => {
+    if(r[0] && r[0].trim() === 'Asset Status Options') optHeaderIdx = i;
+    if(r[0] && r[0].trim() === 'Parameter') paramHeaderIdx = i;
   });
+  const statusOptions=[], workTypes=[];
+  if(optHeaderIdx >= 0){
+    const end = paramHeaderIdx >= 0 ? paramHeaderIdx : raw.length;
+    for(let i=optHeaderIdx+1; i<end; i++){
+      const r = raw[i]; if(!r) continue;
+      if(r[0] && r[0].trim()) statusOptions.push(r[0].trim());
+      if(r[2] && r[2].trim()) workTypes.push(r[2].trim());
+    }
+  }
+  const params = {};
+  if(paramHeaderIdx >= 0){
+    for(let i=paramHeaderIdx+1; i<raw.length; i++){
+      const r = raw[i]; if(!r || !r[0] || !r[0].trim()) continue;
+      params[r[0].trim()] = (r[1] ?? '').trim();
+    }
+  }
+  return {
+    statusOptions: statusOptions.length ? statusOptions : FALLBACK_STATUS_OPTIONS,
+    workTypes: workTypes.length ? workTypes : FALLBACK_WORK_TYPES,
+    params
+  };
+}
 
-  loginPinInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') loginBtn.click(); });
+async function fetchCsv(url){
+  const res = await fetch(url, { cache:'no-store' });
+  return res.text();
+}
 
-  function enterApp(){
+/* ============================================================
+   LOAD ALL REFERENCE DATA (after login)
+   ============================================================ */
+async function loadAllReferenceData(){
+  const results = await Promise.allSettled([
+    fetchCsv(CONFIG.ASSET_TYPES_CSV_URL),
+    fetchCsv(CONFIG.SETTINGS_CSV_URL),
+    fetchCsv(CONFIG.ASSET_REGISTRY_CSV_URL),
+    fetchCsv(CONFIG.PARTS_INVENTORY_CSV_URL)
+  ]);
+
+  if(results[0].status === 'fulfilled'){
+    const raw = rawCsvRows(results[0].value);
+    state.assetTypes = parseNamedTable(raw, 'Domain');
+    state.assetTypesByDomain = {};
+    state.assetTypes.forEach(t => {
+      if(!t.Domain || !t.Asset_Type) return;
+      (state.assetTypesByDomain[t.Domain] ||= []).push(t);
+    });
+  }
+  if(results[1].status === 'fulfilled'){
+    state.settings = parseSettingsCsv(results[1].value);
+  }
+  if(results[2].status === 'fulfilled'){
+    const raw = rawCsvRows(results[2].value);
+    state.assets = parseNamedTable(raw, 'Asset_ID');
+  }
+  if(results[3].status === 'fulfilled'){
+    const raw = rawCsvRows(results[3].value);
+    state.parts = parseNamedTable(raw, 'Part_Name');
+  }
+
+  buildDomainTiles();
+  buildStatusTiles();
+  buildWorkTypeChips();
+  buildLocationList();
+  renderStats();
+  applyDefaults();
+}
+
+function applyDefaults(){
+  const interval = state.settings.params.Default_Service_Interval_Days;
+  if(interval && !state.assetForm.serviceInterval){
+    state.assetForm.serviceInterval = interval;
+    document.getElementById('serviceIntervalInput').value = interval;
+  } else if(!document.getElementById('serviceIntervalInput').value){
+    document.getElementById('serviceIntervalInput').value = FALLBACK_DEFAULT_INTERVAL;
+    state.assetForm.serviceInterval = FALLBACK_DEFAULT_INTERVAL;
+  }
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+function buildPinPad(){
+  const pad = document.getElementById('pinPad');
+  const keys = ['1','2','3','4','5','6','7','8','9','⌫','0','OK'];
+  pad.innerHTML = keys.map(k => `<button type="button" data-key="${k}">${k}</button>`).join('');
+  pad.querySelectorAll('button').forEach(b => b.addEventListener('click', () => onPinKey(b.dataset.key)));
+}
+function onPinKey(key){
+  if(key === '⌫'){ state.loginPin = state.loginPin.slice(0,-1); }
+  else if(key === 'OK'){ attemptLogin(); return; }
+  else if(state.loginPin.length < 4){ state.loginPin += key; }
+  document.getElementById('pinDisplay').textContent = '•'.repeat(state.loginPin.length).padEnd(4,'·');
+}
+
+function wireLoginEvents(){
+  document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+  document.getElementById('loginUsername').addEventListener('keydown', e => { if(e.key === 'Enter') attemptLogin(); });
+  document.getElementById('logoutBtn').addEventListener('click', signOut);
+}
+
+async function attemptLogin(){
+  const username = document.getElementById('loginUsername').value.trim();
+  const pin = state.loginPin;
+  const errBanner = document.getElementById('loginErrBanner');
+  errBanner.classList.remove('show');
+
+  if(!username || pin.length !== 4){
+    errBanner.textContent = 'Enter a username and your 4-digit PIN.';
+    errBanner.classList.add('show');
+    return;
+  }
+
+  const loginBtn = document.getElementById('loginBtn');
+  loginBtn.disabled = true; loginBtn.textContent = 'Checking…';
+
+  try{
+    // Users list is loaded fresh at login time so a PIN change on the sheet
+    // takes effect immediately without redeploying anything.
+    const text = await fetchCsv(CONFIG.USERS_CSV_URL);
+    const raw = rawCsvRows(text);
+    state.users = parseNamedTable(raw, 'Username');
+    const match = state.users.find(u => (u.Username || '').toLowerCase() === username.toLowerCase());
+
+    if(!match){ throw new Error('Username not found.'); }
+    if((match.Active || '').toLowerCase() !== 'yes'){ throw new Error('This account is not active.'); }
+    if((match.PIN || '').trim() !== pin){ throw new Error('Incorrect PIN.'); }
+
+    state.user = { username: match.Username, displayName: match.Display_Name, role: match.Role };
+    document.getElementById('userDisplayName').textContent = state.user.displayName;
+    document.getElementById('userRole').textContent = state.user.role;
+    document.getElementById('logReportedByDisplay').value = state.user.displayName;
+    document.getElementById('logRoleDisplay').value = state.user.role;
+    document.getElementById('closeByManagerWrap').style.display =
+      (state.user.role === 'Ranch Manager' || state.user.role === 'Executive') ? 'flex' : 'none';
+
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('userName').textContent = state.currentUser.displayName;
-    document.getElementById('userRole').textContent = state.currentUser.role;
-    var modeFooter = document.getElementById('modeFooter');
-    if (HAS_BACKEND){
-      modeFooter.textContent = 'Connected — checking which sheet…';
-      google.script.run.withSuccessHandler(function(info){
-        modeFooter.innerHTML = 'Connected to <a href="' + info.spreadsheetUrl + '" target="_blank" rel="noopener">' +
-          escapeHtml(info.spreadsheetName) + '</a> · ' + info.assetRegistryRowCount + ' assets on file. ' +
-          'If this isn\'t the sheet you expect, you\'re on the wrong deployment URL.';
-      }).withFailureHandler(function(err){
-        modeFooter.textContent = 'Connected, but could not read spreadsheet info: ' + String(err);
-      }).getBackendInfo();
-    } else {
-      modeFooter.textContent = 'Preview mode — running on sample data, not yet connected to the live sheet.';
-    }
-    renderWoHeader();
-    renderAll();
+    document.getElementById('appRoot').style.display = 'block';
+    wireAppEvents();
+    renderRecent();
+    await loadAllReferenceData();
+  } catch(err){
+    errBanner.textContent = err.message || 'Sign-in failed — check your connection and try again.';
+    errBanner.classList.add('show');
+  } finally {
+    loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
   }
+}
 
-  document.getElementById('logoutBtn').addEventListener('click', function(){
-    state.currentUser = null;
-    resetForm();
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'block';
-    loginPinInput.value = '';
+function signOut(){
+  state.user = null;
+  state.loginPin = '';
+  document.getElementById('pinDisplay').textContent = '••••';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+/* ============================================================
+   APP EVENTS (wired once, after first login)
+   ============================================================ */
+let appEventsWired = false;
+function wireAppEvents(){
+  if(appEventsWired) return;
+  appEventsWired = true;
+
+  document.getElementById('modeAssetBtn').addEventListener('click', () => setMode('asset'));
+  document.getElementById('modeLogBtn').addEventListener('click', () => setMode('log'));
+  document.getElementById('modePartBtn').addEventListener('click', () => setMode('part'));
+
+  document.getElementById('assetTypeSelect').addEventListener('change', e => {
+    state.assetForm.assetType = e.target.value; syncAssetIdPreview();
   });
-
-  /* =========================================================================
-     KPI STRIP
-  ========================================================================= */
-
-  function computeKpis(){
-    var assets = state.assets;
-    var operational = assets.filter(function(a){ return a.status === 'Operational'; }).length;
-    var needsService = assets.filter(function(a){ return a.status === 'Needs Service'; }).length;
-    var outOfOrder = assets.filter(function(a){ return a.status === 'Out of Order'; }).length;
-    var total = assets.length;
-
-    var grace = Number(state.settings.overdueGraceDays) || 0;
-    var today = new Date(); today.setHours(0,0,0,0);
-    var overdue = assets.filter(function(a){
-      if (!a.nextServiceDue) return false;
-      var due = new Date(a.nextServiceDue);
-      var threshold = new Date(today); threshold.setDate(threshold.getDate() - grace);
-      return due < threshold;
-    }).length;
-
-    var lowParts = state.parts.filter(function(p){ return p.status === 'LOW'; }).length;
-    var assetBasis = assets.reduce(function(sum, a){ return sum + (Number(a.purchasePrice) || 0); }, 0);
-
-    return { operational: operational, needsService: needsService, outOfOrder: outOfOrder, total: total, overdue: overdue, lowParts: lowParts, assetBasis: assetBasis };
-  }
-
-  function fmtMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
-
-  function renderKpis(){
-    var k = computeKpis();
-    var cards = [
-      { num: k.operational, lbl: 'Operational', cls: 'good' },
-      { num: k.needsService, lbl: 'Needs Service', cls: k.needsService > 0 ? 'warn' : '' },
-      { num: k.outOfOrder, lbl: 'Out of Order', cls: k.outOfOrder > 0 ? 'danger' : '' },
-      { num: k.total, lbl: 'Total Assets', cls: '' },
-      { num: k.overdue, lbl: 'Overdue Service', cls: k.overdue > 0 ? 'danger' : '' },
-      { num: k.lowParts, lbl: 'Low Parts Alerts', cls: k.lowParts > 0 ? 'warn' : '' },
-      { num: fmtMoney(k.assetBasis), lbl: 'Total Asset Basis', cls: '' }
-    ];
-    var strip = document.getElementById('kpiStrip');
-    strip.innerHTML = '';
-    cards.forEach(function(c){
-      var el = document.createElement('div');
-      el.className = 'kpi-card ' + c.cls;
-      el.innerHTML = '<div class="num">' + c.num + '</div><div class="lbl">' + c.lbl + '</div>';
-      strip.appendChild(el);
-    });
-  }
-
-  /* =========================================================================
-     ASSET LOOKUP + SELECTION
-  ========================================================================= */
-
-  var lookupBtn = document.getElementById('lookupBtn');
-  var lookupPanel = document.getElementById('assetLookupPanel');
-  var lookupList = document.getElementById('assetLookupList');
-  var assetSearchInput = document.getElementById('assetSearchInput');
-  var assetCategoryFilter = document.getElementById('assetCategoryFilter');
-
-  lookupBtn.addEventListener('click', function(){
-    var open = lookupPanel.style.display !== 'none';
-    lookupPanel.style.display = open ? 'none' : 'block';
-    if (!open) renderAssetLookup();
+  document.getElementById('assetIdOverride').addEventListener('input', e => {
+    state.assetForm.assetIdOverride = e.target.value; syncAssetIdPreview();
   });
+  document.getElementById('assetNameInput').addEventListener('input', e => { state.assetForm.assetName = e.target.value; });
+  document.getElementById('locationInput').addEventListener('input', e => { state.assetForm.location = e.target.value; });
+  document.getElementById('serviceIntervalInput').addEventListener('input', e => { state.assetForm.serviceInterval = e.target.value; });
+  document.getElementById('lastServicedInput').addEventListener('change', e => { state.assetForm.lastServiced = e.target.value; });
+  document.getElementById('purchasePriceInput').addEventListener('input', e => { state.assetForm.purchasePrice = e.target.value; });
 
-  assetSearchInput.addEventListener('input', renderAssetLookup);
-  assetCategoryFilter.addEventListener('change', renderAssetLookup);
+  document.querySelectorAll('.stepbtn').forEach(b => b.addEventListener('click', () => stepNumeric(b.dataset.target, parseFloat(b.dataset.step))));
 
-  function populateAssetCategoryFilter(){
-    assetCategoryFilter.innerHTML = '';
-    var allOpt = document.createElement('option');
-    allOpt.value = ''; allOpt.textContent = 'All Domains';
-    assetCategoryFilter.appendChild(allOpt);
-    state.settings.domainOptions.forEach(function(c){
-      var opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
-      assetCategoryFilter.appendChild(opt);
-    });
-  }
+  wireAssetAutocomplete();
+  wirePartAutocomplete();
 
-  function renderAssetLookup(){
-    var query = assetSearchInput.value.trim().toLowerCase();
-    var category = assetCategoryFilter.value;
-    var filtered = state.assets.filter(function(a){
-      var matchesQuery = !query || a.assetName.toLowerCase().indexOf(query) !== -1 || a.assetId.toLowerCase().indexOf(query) !== -1;
-      var matchesCategory = !category || a.category === category;
-      return matchesQuery && matchesCategory;
-    });
+  document.getElementById('logDescriptionInput').addEventListener('input', e => { state.logForm.description = e.target.value; });
+  document.getElementById('logCostInput').addEventListener('input', e => { state.logForm.cost = e.target.value; });
+  document.querySelectorAll('#logStatusChips .chip').forEach(c => c.addEventListener('click', () => selectLogStatus(c.dataset.status)));
+  document.getElementById('closeByManagerCheck').addEventListener('change', e => { state.logForm.closeByManager = e.target.checked; });
 
-    lookupList.innerHTML = '';
-    if (!state.assets.length){
-      lookupList.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No assets in ASSET_REGISTRY yet.</div>';
-      return;
-    }
-    if (!filtered.length){
-      lookupList.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No assets match that search.</div>';
-      return;
-    }
-    filtered.forEach(function(a){
-      var row = document.createElement('button');
-      row.className = 'asset-row';
-      row.innerHTML = '<span><span class="aid">' + a.assetId + '</span><br><span class="aname">' + a.assetName + ' · ' + a.location + '</span></span>' +
-        statusBadgeHtml(a.status);
-      row.addEventListener('click', function(){
-        selectAsset(a.assetId);
-        lookupPanel.style.display = 'none';
-      });
-      lookupList.appendChild(row);
-    });
-  }
-
-  function statusBadgeHtml(status){
-    var cls = status === 'Operational' ? 'op' : status === 'Needs Service' ? 'need' : 'down';
-    return '<span class="status-badge ' + cls + '">' + status + '</span>';
-  }
-
-  function selectAsset(assetId){
-    var asset = state.assets.find(function(a){ return a.assetId === assetId; });
-    state.selectedAsset = asset || null;
-    renderAssetPlate();
-    renderWoAssetLine();
-    updateSubmitState();
-  }
-
-  function renderAssetPlate(){
-    var holder = document.getElementById('assetPlateHolder');
-    if (!state.selectedAsset){
-      holder.innerHTML = '<div class="empty-plate">No asset selected yet. Scan a QR code or use Manual Asset Lookup to choose one.</div>';
-      return;
-    }
-    var a = state.selectedAsset;
-    holder.innerHTML =
-      '<div class="asset-plate">' +
-        '<span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>' +
-        '<div class="top-row">' +
-          '<div><div class="asset-id mono">' + a.assetId + '</div><div class="asset-name">' + a.assetName + '</div></div>' +
-          statusBadgeHtml(a.status) +
-        '</div>' +
-        '<div class="meta-row">' +
-          '<div><div class="k">Domain</div><div class="v">' + a.category + '</div></div>' +
-          (a.assetType ? '<div><div class="k">Asset Type</div><div class="v">' + a.assetType + '</div></div>' : '') +
-          '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
-          '<div><div class="k">Manufacturer</div><div class="v">' + (a.manufacturer || '—') + '</div></div>' +
-          '<div><div class="k">Registered</div><div class="v">' + (a.dateCreated || '—') + '</div></div>' +
-          '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
-          '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
-          (a.identifierNumber ? '<div><div class="k">' + (a.identifierType || 'ID') + '</div><div class="v mono" style="font-size:11.5px;">' + a.identifierNumber + '</div></div>' : '') +
-        '</div>' +
-      '</div>';
-  }
-
-  /* =========================================================================
-     QR SCAN
-  ========================================================================= */
-
-  var scanBtn = document.getElementById('scanBtn');
-  var scanModal = document.getElementById('scanModal');
-  var scanVideoWrap = document.getElementById('scanVideoWrap');
-  var scanFallback = document.getElementById('scanFallback');
-  var scanCancelBtn = document.getElementById('scanCancelBtn');
-  var scanStream = null, scanDetectTimer = null;
-
-  scanBtn.addEventListener('click', openScanModal);
-  scanCancelBtn.addEventListener('click', closeScanModal);
-  document.getElementById('scanCloseX').addEventListener('click', closeScanModal);
-
-  function openScanModal(){
-    scanModal.classList.add('show');
-    startScan();
-  }
-  function closeScanModal(){
-    scanModal.classList.remove('show');
-    stopScan();
-  }
-
-  function startScan(){
-    scanVideoWrap.innerHTML = '<div class="scan-fallback" id="scanFallback">Starting camera…</div>';
-    if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      showScanFallback();
-      return;
-    }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream){
-      scanStream = stream;
-      var video = document.createElement('video');
-      video.setAttribute('playsinline', '');
-      video.autoplay = true;
-      video.srcObject = stream;
-      scanVideoWrap.innerHTML = '';
-      scanVideoWrap.appendChild(video);
-      var frame = document.createElement('div');
-      frame.className = 'scan-frame';
-      scanVideoWrap.appendChild(frame);
-
-      var detector = new BarcodeDetector({ formats: ['qr_code'] });
-      scanDetectTimer = setInterval(function(){
-        detector.detect(video).then(function(codes){
-          if (codes && codes.length){
-            handleScannedValue(codes[0].rawValue);
-          }
-        }).catch(function(){ /* frame not ready yet — ignore */ });
-      }, 400);
-    }).catch(function(){
-      showScanFallback();
-    });
-  }
-
-  function showScanFallback(){
-    scanVideoWrap.innerHTML = '<div class="scan-fallback">Camera scanning isn\'t available on this device or browser.<br><br>Use <b>Manual Asset Lookup</b> instead.</div>';
-  }
-
-  function stopScan(){
-    if (scanDetectTimer){ clearInterval(scanDetectTimer); scanDetectTimer = null; }
-    if (scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
-  }
-
-  function handleScannedValue(raw){
-    var assetId = raw;
-    try {
-      var url = new URL(raw);
-      var param = url.searchParams.get('asset_id');
-      if (param) assetId = param;
-    } catch (e){ /* raw value wasn't a URL — use it as-is */ }
-
-    var match = state.assets.find(function(a){ return a.assetId === assetId; });
-    closeScanModal();
-    if (match){
-      selectAsset(match.assetId);
-      showToast(match.assetId, 'Asset loaded from QR scan.');
-    } else {
-      showToast('Not found', 'No asset "' + assetId + '" in ASSET_REGISTRY — try Manual Lookup.');
-    }
-  }
-
-  /* =========================================================================
-     REGISTER NEW ASSET
-  ========================================================================= */
-
-  var registerBtn = document.getElementById('registerBtn');
-  var registerModal = document.getElementById('registerModal');
-  var regCategory = document.getElementById('regCategory');
-  var regStatus = document.getElementById('regStatus');
-  var regIdLabel = document.getElementById('regIdLabel');
-  var regIdNumber = document.getElementById('regIdNumber');
-  var regError = document.getElementById('regError');
-  var regPhotos = []; // { dataUrl, mimeType, filename }
-
-  var regPhotoInput = document.getElementById('regPhotoInput');
-  var regAddPhotoBtn = document.getElementById('regAddPhotoBtn');
-  var regPhotoGrid = document.getElementById('regPhotoGrid');
-
-  regAddPhotoBtn.addEventListener('click', function(){ regPhotoInput.click(); });
-
-  regPhotoInput.addEventListener('change', function(){
-    var files = Array.from(regPhotoInput.files || []);
-    files.forEach(function(file){
-      resizeImageFile_(file).then(function(result){
-        regPhotos.push({ dataUrl: result.dataUrl, mimeType: result.mimeType, filename: 'photo-' + (regPhotos.length + 1) + '.jpg' });
-        renderPhotoGrid();
-      }).catch(function(){
-        showToast('Skipped', 'One photo couldn\'t be read — try again.');
-      });
-    });
-    regPhotoInput.value = '';
-  });
-
-  function resizeImageFile_(file){
-    return new Promise(function(resolve, reject){
-      var reader = new FileReader();
-      reader.onerror = reject;
-      reader.onload = function(e){
-        var img = new Image();
-        img.onerror = reject;
-        img.onload = function(){
-          var maxDim = 1280;
-          var w = img.width, h = img.height;
-          if (w > maxDim || h > maxDim){
-            if (w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
-            else { w = Math.round(w * maxDim / h); h = maxDim; }
-          }
-          var canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.82), mimeType: 'image/jpeg' });
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function renderPhotoGrid(){
-    regPhotoGrid.innerHTML = '';
-    regPhotos.forEach(function(p, idx){
-      var thumb = document.createElement('div');
-      thumb.className = 'photo-thumb';
-      thumb.innerHTML = '<img src="' + p.dataUrl + '" alt="Asset photo ' + (idx + 1) + '"><button type="button" class="rm" aria-label="Remove photo">×</button>';
-      thumb.querySelector('.rm').addEventListener('click', function(){
-        regPhotos.splice(idx, 1);
-        renderPhotoGrid();
-      });
-      regPhotoGrid.appendChild(thumb);
-    });
-    var note = document.getElementById('regPhotoCountNote');
-    if (note) note.remove();
-    var el = document.createElement('div');
-    el.id = 'regPhotoCountNote';
-    el.className = 'photo-count-note' + (regPhotos.length >= 3 ? ' ok' : '');
-    el.textContent = regPhotos.length + ' of 3+ photos added.';
-    regPhotoGrid.insertAdjacentElement('afterend', el);
-  }
-
-  var VIN_ASSET_TYPES = ['Tractor', 'UTV'];
-  var regAssetType = document.getElementById('regAssetType');
-
-  function populateRegisterForm(){
-    regCategory.innerHTML = '';
-    state.settings.domainOptions.forEach(function(c){
-      var opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
-      regCategory.appendChild(opt);
-    });
-    regStatus.innerHTML = '';
-    state.settings.statusOptions.forEach(function(s){
-      var opt = document.createElement('option');
-      opt.value = s; opt.textContent = s;
-      regStatus.appendChild(opt);
-    });
-    populateAssetTypeOptions();
-  }
-
-  function populateAssetTypeOptions(){
-    regAssetType.innerHTML = '';
-    var domain = regCategory.value;
-    var types = (state.settings.assetTypes || []).filter(function(t){ return t.domain === domain; });
-    types.forEach(function(t){
-      var opt = document.createElement('option');
-      opt.value = t.type; opt.textContent = t.type;
-      regAssetType.appendChild(opt);
-    });
-    updateIdentifierLabel();
-  }
-  regCategory.addEventListener('change', populateAssetTypeOptions);
-
-  function updateIdentifierLabel(){
-    var isVehicle = VIN_ASSET_TYPES.indexOf(regAssetType.value) !== -1;
-    regIdLabel.textContent = isVehicle ? 'VIN' : 'Manufacturer Serial Number';
-    regIdNumber.placeholder = isVehicle ? '17-character VIN' : 'e.g. serial or ID plate number';
-  }
-  regAssetType.addEventListener('change', updateIdentifierLabel);
-
-  document.getElementById('regAutoIdBtn').addEventListener('click', function(){
-    var btn = document.getElementById('regAutoIdBtn');
-    var assetType = regAssetType.value;
-    if (!assetType){
-      regError.textContent = 'Pick a domain and asset type first so Auto-Generate knows which prefix to use.';
-      regError.classList.add('show');
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = '…';
-    backendSuggestAssetId(assetType, function(suggestedId){
-      btn.disabled = false;
-      btn.textContent = 'Auto-Generate';
-      document.getElementById('regAssetId').value = suggestedId;
-      regError.classList.remove('show');
+  document.getElementById('resetBtn').addEventListener('click', resetCurrentForm);
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    handleSave().catch(err => {
+      console.error('save failed:', err);
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = false; saveBtn.textContent = saveLabelForMode();
+      showErr('Unexpected error while saving: ' + (err && err.message ? err.message : err));
     });
   });
+  document.getElementById('syncBtn').addEventListener('click', trySyncQueue);
+}
 
-  registerBtn.addEventListener('click', function(){
-    clearRegisterForm();
-    registerModal.classList.add('show');
+function stepNumeric(target, delta){
+  if(target === 'serviceInterval'){
+    const input = document.getElementById('serviceIntervalInput');
+    const v = (parseFloat(input.value) || 0) + delta;
+    input.value = Math.max(0, v);
+    state.assetForm.serviceInterval = input.value;
+  } else if(target === 'partDelta'){
+    const input = document.getElementById('partDeltaInput');
+    const v = (parseFloat(input.value) || 0) + delta;
+    input.value = v;
+    state.partForm.delta = v;
+    updatePartPreview();
+  }
+}
+
+/* ============================================================
+   MODE SWITCHING
+   ============================================================ */
+function setMode(mode){
+  state.mode = mode;
+  document.getElementById('modeAssetBtn').classList.toggle('active', mode==='asset');
+  document.getElementById('modeLogBtn').classList.toggle('active', mode==='log');
+  document.getElementById('modePartBtn').classList.toggle('active', mode==='part');
+  document.getElementById('assetMode').style.display = mode==='asset' ? 'block' : 'none';
+  document.getElementById('logMode').style.display = mode==='log' ? 'block' : 'none';
+  document.getElementById('partMode').style.display = mode==='part' ? 'block' : 'none';
+  document.getElementById('saveBtn').textContent = saveLabelForMode();
+  hideBanners();
+}
+function saveLabelForMode(){
+  return state.mode === 'asset' ? 'Save Asset' : state.mode === 'log' ? 'Save Log Entry' : 'Save Restock';
+}
+
+/* ============================================================
+   BUILD REFERENCE-DRIVEN UI
+   ============================================================ */
+function buildDomainTiles(){
+  const wrap = document.getElementById('domainTiles');
+  const domains = Object.keys(state.assetTypesByDomain);
+  if(!domains.length){ wrap.innerHTML = '<div class="loadingnote">No ASSET_TYPES loaded — check the published CSV link.</div>'; return; }
+  wrap.innerHTML = domains.map(d => `
+    <div class="tile" data-domain="${d}"><span class="glyph">${domainGlyph(d)}</span>${d}</div>`).join('');
+  wrap.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => selectDomain(t.dataset.domain)));
+}
+function selectDomain(domain){
+  state.assetForm.domain = domain;
+  state.assetForm.assetType = '';
+  document.querySelectorAll('#domainTiles .tile').forEach(t => t.classList.toggle('active', t.dataset.domain === domain));
+  const select = document.getElementById('assetTypeSelect');
+  const types = state.assetTypesByDomain[domain] || [];
+  select.innerHTML = types.map(t => `<option value="${t.Asset_Type}">${t.Asset_Type}</option>`).join('');
+  if(types.length){ state.assetForm.assetType = types[0].Asset_Type; select.value = types[0].Asset_Type; }
+  syncAssetIdPreview();
+}
+
+function buildStatusTiles(){
+  const wrap = document.getElementById('statusTiles');
+  wrap.innerHTML = state.settings.statusOptions.map(s => `<div class="tile" data-status="${s}">${s}</div>`).join('');
+  wrap.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => selectStatus(t.dataset.status)));
+  selectStatus(state.assetForm.status || state.settings.statusOptions[0]);
+}
+function selectStatus(status){
+  state.assetForm.status = status;
+  document.querySelectorAll('#statusTiles .tile').forEach(t => {
+    const active = t.dataset.status === status;
+    t.classList.toggle('active', active);
+    t.classList.remove('status-warn','status-danger');
+    if(active && status === 'Needs Service') t.classList.add('status-warn');
+    if(active && status === 'Out of Order') t.classList.add('status-danger');
   });
-  document.getElementById('regCancelBtn').addEventListener('click', function(){
-    registerModal.classList.remove('show');
-  });
-  document.getElementById('regCloseX').addEventListener('click', function(){
-    registerModal.classList.remove('show');
-  });
+}
 
-  function clearRegisterForm(){
-    document.getElementById('regAssetId').value = '';
-    document.getElementById('regAssetName').value = '';
-    document.getElementById('regDateCreated').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    document.getElementById('regManufacturer').value = '';
-    document.getElementById('regLocation').value = '';
-    regIdNumber.value = '';
-    document.getElementById('regServiceInterval').value = state.settings.defaultServiceIntervalDays || 90;
-    document.getElementById('regLastServiced').value = '';
-    document.getElementById('regPurchasePrice').value = '0.00';
-    regStatus.value = 'Operational';
-    regCategory.selectedIndex = 0;
-    populateAssetTypeOptions();
-    regError.classList.remove('show');
-    regPhotos = [];
-    renderPhotoGrid();
-    updateIdentifierLabel();
-  }
+function buildWorkTypeChips(){
+  const wrap = document.getElementById('workTypeChips');
+  wrap.innerHTML = state.settings.workTypes.map(w => `<div class="chip" data-work="${w}">${w}</div>`).join('');
+  wrap.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => selectWorkType(c.dataset.work)));
+}
+function selectWorkType(work){
+  state.logForm.workType = work;
+  document.querySelectorAll('#workTypeChips .chip').forEach(c => c.classList.toggle('active', c.dataset.work === work));
+}
+function selectLogStatus(status){
+  state.logForm.status = status;
+  document.querySelectorAll('#logStatusChips .chip').forEach(c => c.classList.toggle('active', c.dataset.status === status));
+}
 
-  document.getElementById('regSubmitBtn').addEventListener('click', function(){
-    var assetId = document.getElementById('regAssetId').value.trim();
-    var assetName = document.getElementById('regAssetName').value.trim();
-    if (!assetId || !assetName){
-      regError.textContent = 'Ranch Asset ID and Asset Name are both required.';
-      regError.classList.add('show');
-      return;
-    }
-    if (!regAssetType.value){
-      regError.textContent = 'Pick an Asset Type so the record is tagged correctly.';
-      regError.classList.add('show');
-      return;
-    }
-    if (regPhotos.length < 3){
-      regError.textContent = 'Add at least 3 photos of the asset before saving.';
-      regError.classList.add('show');
-      return;
-    }
-    var payload = {
-      assetId: assetId,
-      assetName: assetName,
-      category: regCategory.value,
-      assetType: regAssetType.value,
-      manufacturer: document.getElementById('regManufacturer').value.trim(),
-      location: document.getElementById('regLocation').value.trim(),
-      identifierType: regIdLabel.textContent,
-      identifierNumber: regIdNumber.value.trim(),
-      serviceIntervalDays: document.getElementById('regServiceInterval').value,
-      lastServiced: document.getElementById('regLastServiced').value,
-      purchasePrice: document.getElementById('regPurchasePrice').value,
-      status: regStatus.value,
-      photos: regPhotos.map(function(p){ return { filename: p.filename, mimeType: p.mimeType, base64: p.dataUrl.split(',')[1] }; })
-    };
+function buildLocationList(){
+  const dl = document.getElementById('locationList');
+  const locs = [...new Set(state.assets.map(a => a.Location).filter(Boolean))];
+  dl.innerHTML = locs.map(l => `<option value="${l}"></option>`).join('');
+}
 
-    var btn = document.getElementById('regSubmitBtn');
-    btn.disabled = true;
-    btn.textContent = 'Adding…';
-
-    backendRegisterAsset(payload, function(result){
-      btn.disabled = false;
-      btn.textContent = 'Add Asset';
-      registerModal.classList.remove('show');
-      state.assets = result.data.assets;
-      state.parts = result.data.parts;
-      renderKpis();
-      selectAsset(result.assetId);
-      showToast(result.assetId, 'Added to ASSET_REGISTRY on ' + document.getElementById('regDateCreated').textContent + '.');
-    }, function(err){
-      btn.disabled = false;
-      btn.textContent = 'Add Asset';
-      regError.textContent = String(err && err.message ? err.message : err);
-      regError.classList.add('show');
-    });
-  });
-
-  /* =========================================================================
-     WORK ORDER FORM
-  ========================================================================= */
-
-  function todayIso(){ return new Date().toISOString().slice(0, 10); }
-
-  function renderWoHeader(){
-    if (!state.currentUser) return;
-    document.getElementById('woDate').textContent =
-      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    document.getElementById('woRequestedBy').textContent = state.currentUser.displayName;
-    document.getElementById('woWorkerSig').textContent = state.currentUser.displayName;
-    var assignedInput = document.getElementById('woAssignedTo');
-    if (!assignedInput.value.trim()) assignedInput.value = state.currentUser.displayName;
-  }
-
-  function renderWoAssetLine(){
-    var el = document.getElementById('woAssetLine');
-    if (!state.selectedAsset){
-      el.innerHTML = '<span class="amissing">No asset selected — scan or look one up above.</span>';
-      return;
-    }
-    var a = state.selectedAsset;
-    el.innerHTML =
-      '<span class="aid">' + a.assetId + '</span> — ' + a.assetName +
-      '<br><span style="color:var(--ink-soft); font-size:12px;">' +
-        a.category + (a.assetType ? ' · ' + a.assetType : '') + ' · ' + a.location +
-      '</span>';
-  }
-
-  function renderPrioritySelect(){
-    var sel = document.getElementById('prioritySelect');
-    sel.innerHTML = '<option value="" disabled selected>Select priority…</option>';
-    ['Low', 'Medium', 'High', 'Emergency'].forEach(function(level){
-      var opt = document.createElement('option');
-      opt.value = level;
-      opt.textContent = level;
-      sel.appendChild(opt);
-    });
-    sel.addEventListener('change', function(){
-      state.priority = sel.value || null;
-      updateSubmitState();
-    });
-  }
-
-  function priorityTagHtml(priority){
-    var cls = (priority || 'Medium').toLowerCase();
-    return '<span class="priority-tag ' + cls + '">' + (priority || 'Medium') + '</span>';
-  }
-
-  function renderWorkTypeSelect(){
-    var sel = document.getElementById('workTypeSelect');
-    sel.innerHTML = '<option value="" disabled selected>Select work type…</option>';
-    state.settings.workTypes.forEach(function(wt){
-      var opt = document.createElement('option');
-      opt.value = wt;
-      opt.textContent = wt;
-      sel.appendChild(opt);
-    });
-    sel.addEventListener('change', function(){
-      state.workType = sel.value || null;
-      var isDamage = sel.value === 'Damage / Repair Needed';
-      document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
-      if (!isDamage) document.getElementById('markOutOfOrder').checked = false;
-      updateSubmitState();
-    });
-  }
-
-  function renderStatusSelect(){
-    var sel = document.getElementById('statusSelect');
-    sel.innerHTML = '<option value="" disabled selected>Select status…</option>';
-    ['Completed', 'Open / Needs Follow-up'].forEach(function(s){
-      var opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      sel.appendChild(opt);
-    });
-    sel.addEventListener('change', function(){
-      state.workStatus = sel.value || null;
-      var completedDateInput = document.getElementById('completedDateInput');
-      if (sel.value === 'Completed'){
-        if (!completedDateInput.value) completedDateInput.value = todayIso();
-      } else {
-        completedDateInput.value = '';
+/* ============================================================
+   ASSET ID PREVIEW (best-effort client-side mirror of the
+   server's nextAssetId — server is authoritative on save)
+   ============================================================ */
+function syncAssetIdPreview(){
+  const chip = document.getElementById('assetIdChip');
+  if(state.assetForm.assetIdOverride){ chip.textContent = state.assetForm.assetIdOverride; return; }
+  const info = (state.assetTypes || []).find(t => t.Domain === state.assetForm.domain && t.Asset_Type === state.assetForm.assetType);
+  if(!info || !info.Prefix){ chip.textContent = '···-··'; return; }
+  const prefix = info.Prefix;
+  const style = (info.Suffix_Style || 'numeric').toLowerCase();
+  const existing = state.assets.map(a => a.Asset_ID).filter(id => id && id.toUpperCase().startsWith(prefix.toUpperCase() + '-'));
+  if(style === 'alpha'){
+    let maxIdx = -1;
+    existing.forEach(id => {
+      const s = id.slice(prefix.length+1);
+      if(/^[A-Za-z]+$/.test(s)){
+        let idx=0; for(let i=0;i<s.length;i++) idx = idx*26 + (s.toUpperCase().charCodeAt(i)-64);
+        maxIdx = Math.max(maxIdx, idx-1);
       }
-      updateSubmitState();
     });
+    let n = maxIdx+2, letters='';
+    while(n>0){ const rem=(n-1)%26; letters = String.fromCharCode(65+rem)+letters; n = Math.floor((n-1)/26); }
+    chip.textContent = prefix + '-' + letters;
+  } else {
+    let maxNum = 0;
+    existing.forEach(id => { const n = parseInt(id.slice(prefix.length+1),10); if(!isNaN(n)) maxNum = Math.max(maxNum,n); });
+    chip.textContent = prefix + '-' + String(maxNum+1).padStart(2,'0');
   }
+}
 
-  var vendorNameInput = document.getElementById('vendorNameInput');
-
-  function renderServicedByToggle(){
-    var wrap = document.getElementById('servicedByToggle');
-    wrap.innerHTML = '';
-    ['Ranch Crew', 'Vendor / Outside Shop'].forEach(function(s){
-      var chip = document.createElement('div');
-      chip.className = 'chip-option';
-      chip.textContent = s;
-      chip.tabIndex = 0;
-      chip.addEventListener('click', function(){ selectServicedBy(s); });
-      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectServicedBy(s); } });
-      wrap.appendChild(chip);
-    });
-    selectServicedBy('Ranch Crew');
-  }
-
-  function selectServicedBy(s){
-    state.servicedBy = s;
-    Array.from(document.getElementById('servicedByToggle').children).forEach(function(chip){
-      chip.classList.toggle('selected', chip.textContent === s);
-    });
-    var isVendor = s === 'Vendor / Outside Shop';
-    vendorNameInput.style.display = isVendor ? 'block' : 'none';
-    if (!isVendor) vendorNameInput.value = '';
-    updateSubmitState();
-  }
-  vendorNameInput.addEventListener('input', updateSubmitState);
-
-  function renderPartsList(){
-    var wrap = document.getElementById('partsList');
-    wrap.innerHTML = '';
-    if (!state.parts.length){
-      wrap.innerHTML = '<div class="no-parts-note">No parts in PARTS_INVENTORY yet.</div>';
-      return;
-    }
-    var hint = document.createElement('div');
-    hint.className = 'no-parts-note';
-    hint.textContent = 'Nothing selected — tap a part to add it.';
-    wrap.appendChild(hint);
-
-    state.parts.forEach(function(p){
-      var row = document.createElement('div');
-      row.className = 'part-row';
-      var low = p.status === 'LOW';
-      row.innerHTML =
-        '<input type="checkbox" id="part-' + cssSafe(p.name) + '">' +
-        '<span class="pname">' + p.name + '<br><span class="stock-tag ' + (low ? 'low' : '') + '">' + p.onHand + ' on hand' + (low ? ' · LOW' : '') + '</span></span>' +
-        '<div class="qty-stepper" style="display:none;">' +
-          '<button type="button" class="qty-minus">−</button>' +
-          '<input type="number" min="1" value="1" class="qty-input">' +
-          '<button type="button" class="qty-plus">+</button>' +
-        '</div>';
-      var checkbox = row.querySelector('input[type=checkbox]');
-      checkbox.checked = false;
-      var stepper = row.querySelector('.qty-stepper');
-      var qtyInput = row.querySelector('.qty-input');
-
-      function applyCheckedState(){
-        stepper.style.display = checkbox.checked ? 'flex' : 'none';
-        row.classList.toggle('selected', checkbox.checked);
-        if (checkbox.checked) state.selectedParts[p.name] = Number(qtyInput.value) || 1;
-        else delete state.selectedParts[p.name];
-        var currentHint = wrap.querySelector('.no-parts-note');
-        if (currentHint){
-          var count = Object.keys(state.selectedParts).length;
-          currentHint.textContent = count ? count + ' part' + (count > 1 ? 's' : '') + ' selected.' : 'Nothing selected — tap a part to add it.';
-        }
-      }
-
-      checkbox.addEventListener('change', applyCheckedState);
-      row.addEventListener('click', function(e){
-        if (e.target === checkbox || e.target.closest('.qty-stepper')) return;
-        checkbox.checked = !checkbox.checked;
-        applyCheckedState();
-      });
-      row.querySelector('.qty-minus').addEventListener('click', function(){
-        qtyInput.value = Math.max(1, (Number(qtyInput.value) || 1) - 1);
-        state.selectedParts[p.name] = Number(qtyInput.value);
-      });
-      row.querySelector('.qty-plus').addEventListener('click', function(){
-        qtyInput.value = (Number(qtyInput.value) || 1) + 1;
-        state.selectedParts[p.name] = Number(qtyInput.value);
-      });
-      qtyInput.addEventListener('input', function(){
-        if (checkbox.checked) state.selectedParts[p.name] = Math.max(1, Number(qtyInput.value) || 1);
-      });
-      wrap.appendChild(row);
-    });
-  }
-
-  function cssSafe(s){ return s.replace(/[^a-z0-9]/gi, '-'); }
-
-  var descriptionInput = document.getElementById('descriptionInput');
-  descriptionInput.addEventListener('input', updateSubmitState);
-
-  function updateSubmitState(){
-    var vendorOk = state.servicedBy !== 'Vendor / Outside Shop' || vendorNameInput.value.trim().length > 0;
-    var ok = state.selectedAsset && state.workType && state.workStatus && state.priority &&
-      descriptionInput.value.trim().length > 0 && vendorOk;
-    document.getElementById('submitBtn').disabled = !ok;
-  }
-
-  document.getElementById('submitBtn').addEventListener('click', submitWorkOrder);
-
-  function submitWorkOrder(){
-    var btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.textContent = 'Submitting…';
-
-    var partsPayload = Object.keys(state.selectedParts).map(function(name){
-      return { name: name, quantity: state.selectedParts[name] };
-    });
-
-    var entry = {
-      assetId: state.selectedAsset.assetId,
-      workType: state.workType,
-      description: descriptionInput.value.trim(),
-      workPerformed: document.getElementById('workPerformedInput').value.trim(),
-      reportedBy: state.currentUser.displayName,
-      assignedTo: document.getElementById('woAssignedTo').value.trim() || state.currentUser.displayName,
-      role: state.currentUser.role,
-      priority: state.priority,
-      cost: document.getElementById('costInput').value || 0,
-      hours: document.getElementById('hoursInput').value || 0,
-      completedDate: document.getElementById('completedDateInput').value || '',
-      status: state.workStatus,
-      parts: partsPayload,
-      materialsNote: document.getElementById('materialsNoteInput').value.trim(),
-      markOutOfOrder: document.getElementById('markOutOfOrder').checked,
-      serviceLocation: state.servicedBy,
-      vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : '',
-      managerSignoff: document.getElementById('managerSignoffInput').value.trim()
-    };
-
-    backendSubmitLogEntry(entry, function(result){
-      btn.textContent = 'Submit Work Order';
-      if (!result){ btn.disabled = false; return; }
-      state.assets = result.data.assets;
-      state.parts = result.data.parts;
-      var reselect = state.assets.find(function(a){ return a.assetId === entry.assetId; });
-      state.selectedAsset = reselect || null;
-
-      showToast(result.logId, 'Work order logged for ' + entry.assetId + '.');
-      prependLocalLogEntry(result.logId, result.timestamp, entry);
-      renderKpis();
-      renderAssetPlate();
-      resetForm(true);
-    });
-  }
-
-  var localRecentLog = [];
-  function prependLocalLogEntry(logId, timestamp, entry){
-    localRecentLog.unshift({
-      logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType,
-      description: entry.description, reportedBy: entry.reportedBy, assignedTo: entry.assignedTo,
-      priority: entry.priority, cost: entry.cost, status: entry.status, materialsNote: entry.materialsNote
-    });
-    renderRecentLog();
-  }
-
-  function renderRecentLog(){
-    var list = document.getElementById('recentLog');
-    var seed = [{ logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', priority: 'Low', cost: 0, status: 'Completed' }];
-    var items = localRecentLog.concat(seed).slice(0, 6);
-    list.innerHTML = '';
-    items.forEach(function(entry){
-      var el = document.createElement('div');
-      el.className = 'log-item';
-      var when = new Date(entry.timestamp);
-      var whenStr = isNaN(when.getTime()) ? entry.timestamp : when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      el.innerHTML =
-        '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
-        '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
-        (entry.materialsNote ? '<div class="desc" style="font-style:italic; color:var(--ink-soft);">Materials: ' + escapeHtml(entry.materialsNote) + '</div>' : '') +
-        '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
-      list.appendChild(el);
-    });
-  }
-
-  function escapeHtml(s){
-    var div = document.createElement('div');
-    div.textContent = s;
-    return div.innerHTML;
-  }
-
-  function resetForm(keepAsset){
-    if (!keepAsset){ state.selectedAsset = null; renderAssetPlate(); }
-    renderWoAssetLine();
-    state.workType = null;
-    state.workStatus = null;
-    state.priority = null;
-    state.selectedParts = {};
-    descriptionInput.value = '';
-    document.getElementById('workPerformedInput').value = '';
-    document.getElementById('hoursInput').value = '';
-    document.getElementById('completedDateInput').value = '';
-    document.getElementById('managerSignoffInput').value = '';
-    document.getElementById('costInput').value = '0.00';
-    document.getElementById('markOutOfOrder').checked = false;
-    document.getElementById('damageFlagRow').style.display = 'none';
-    document.getElementById('woNumber').textContent = 'Assigned on submit';
-    if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
-    document.getElementById('materialsNoteInput').value = '';
-    document.getElementById('workTypeSelect').value = '';
-    document.getElementById('prioritySelect').value = '';
-    document.getElementById('statusSelect').value = '';
-    renderPartsList();
-    selectServicedBy('Ranch Crew');
-    updateSubmitState();
-  }
-
-  /* =========================================================================
-     TOAST
-  ========================================================================= */
-
-  var toastTimer = null;
-  function showToast(stamp, msg){
-    var toast = document.getElementById('toast');
-    document.getElementById('toastStamp').textContent = stamp;
-    document.getElementById('toastMsg').textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 3800);
-  }
-
-  /* =========================================================================
-     BOOT
-  ========================================================================= */
-
-  function renderAll(){
-    renderKpis();
-    renderWorkTypeSelect();
-    renderPrioritySelect();
-    renderStatusSelect();
-    renderServicedByToggle();
-    renderPartsList();
-    renderAssetPlate();
-    renderWoAssetLine();
-    renderRecentLog();
-    populateRegisterForm();
-    populateAssetCategoryFilter();
-    updateSubmitState();
-  }
-
-  backendGetInitialData(function(data){
-    state.settings = data.settings;
-    state.users = data.users;
-    state.assets = data.assets;
-    state.parts = data.parts;
-    populateLoginUsers();
+/* ============================================================
+   AUTOCOMPLETE — assets (log mode) and parts (restock mode)
+   ============================================================ */
+function wireAssetAutocomplete(){
+  const input = document.getElementById('logAssetIdInput');
+  const list = document.getElementById('logAssetAcList');
+  input.addEventListener('input', () => {
+    state.logForm.assetId = input.value;
+    document.getElementById('logAssetReadout').style.display = 'none';
+    const q = input.value.trim().toLowerCase();
+    if(!q){ list.classList.remove('open'); return; }
+    const matches = state.assets.filter(a =>
+      (a.Asset_ID && a.Asset_ID.toLowerCase().includes(q)) ||
+      (a.Asset_Name && a.Asset_Name.toLowerCase().includes(q))
+    ).slice(0, 8);
+    if(!matches.length){ list.classList.remove('open'); return; }
+    list.innerHTML = matches.map(a => `
+      <div class="ac-item" data-id="${a.Asset_ID}">${a.Asset_ID} <span class="mini">${a.Asset_Name || ''} · ${a.Status || ''}</span></div>`).join('');
+    list.classList.add('open');
+    list.querySelectorAll('.ac-item').forEach(item => item.addEventListener('click', () => {
+      const rec = state.assets.find(a => a.Asset_ID === item.dataset.id);
+      input.value = rec.Asset_ID;
+      state.logForm.assetId = rec.Asset_ID;
+      list.classList.remove('open');
+      renderAssetReadout(rec);
+    }));
   });
+  document.addEventListener('click', e => { if(!list.contains(e.target) && e.target !== input) list.classList.remove('open'); });
+}
+function renderAssetReadout(rec){
+  const box = document.getElementById('logAssetReadout');
+  box.style.display = 'flex';
+  box.innerHTML = `
+    <div class="pr-item"><div class="plabel">Name</div><div class="pval">${rec.Asset_Name || '—'}</div></div>
+    <div class="pr-item"><div class="plabel">Status</div><div class="pval">${statusBadge(rec.Status)}</div></div>
+    <div class="pr-item"><div class="plabel">Location</div><div class="pval">${rec.Location || '—'}</div></div>
+  `;
+}
+function statusBadge(status){
+  const cls = status === 'Operational' ? 'ready' : status === 'Needs Service' ? 'warn' : status === 'Out of Order' ? 'danger' : '';
+  return `<span class="badge ${cls}">${status || '—'}</span>`;
+}
 
-})();
+function wirePartAutocomplete(){
+  const input = document.getElementById('partNameInput');
+  const list = document.getElementById('partAcList');
+  input.addEventListener('input', () => {
+    state.partForm.partName = input.value;
+    document.getElementById('partReadout').style.display = 'none';
+    const q = input.value.trim().toLowerCase();
+    if(!q){ list.classList.remove('open'); return; }
+    const matches = state.parts.filter(p => p.Part_Name && p.Part_Name.toLowerCase().includes(q)).slice(0, 8);
+    if(!matches.length){ list.classList.remove('open'); return; }
+    list.innerHTML = matches.map(p => `
+      <div class="ac-item" data-name="${p.Part_Name}">${p.Part_Name} <span class="mini">On hand: ${p.On_Hand} · ${p.Status || ''}</span></div>`).join('');
+    list.classList.add('open');
+    list.querySelectorAll('.ac-item').forEach(item => item.addEventListener('click', () => {
+      const rec = state.parts.find(p => p.Part_Name === item.dataset.name);
+      input.value = rec.Part_Name;
+      state.partForm.partName = rec.Part_Name;
+      list.classList.remove('open');
+      renderPartReadout(rec);
+    }));
+  });
+  document.addEventListener('click', e => { if(!list.contains(e.target) && e.target !== input) list.classList.remove('open'); });
+}
+function renderPartReadout(rec){
+  const box = document.getElementById('partReadout');
+  box.style.display = 'flex';
+  box.dataset.onHand = rec.On_Hand;
+  box.innerHTML = `
+    <div class="pr-item"><div class="plabel">On Hand</div><div class="pval">${rec.On_Hand}</div></div>
+    <div class="pr-item"><div class="plabel">Minimum</div><div class="pval">${rec.Minimum}</div></div>
+    <div class="pr-item"><div class="plabel">Status</div><div class="pval">${rec.Status === 'LOW' ? '<span class="badge danger">LOW</span>' : '<span class="badge ready">OK</span>'}</div></div>
+  `;
+  updatePartPreview();
+}
+function updatePartPreview(){
+  const box = document.getElementById('partReadout');
+  const help = document.getElementById('partNewTotalHelp');
+  if(box.style.display === 'none' || !box.dataset.onHand){ help.textContent = ''; return; }
+  const current = parseFloat(box.dataset.onHand) || 0;
+  const delta = parseFloat(document.getElementById('partDeltaInput').value) || 0;
+  help.textContent = `New On_Hand after save: ${current + delta}`;
+}
+document.addEventListener('input', e => { if(e.target && e.target.id === 'partDeltaInput'){ state.partForm.delta = parseFloat(e.target.value)||0; updatePartPreview(); } });
+
+/* ============================================================
+   STATS
+   ============================================================ */
+function renderStats(){
+  const op = state.assets.filter(a => a.Status === 'Operational').length;
+  const needs = state.assets.filter(a => a.Status === 'Needs Service').length;
+  const out = state.assets.filter(a => a.Status === 'Out of Order').length;
+  const low = state.parts.filter(p => p.Status === 'LOW').length;
+  document.getElementById('statOperational').textContent = op;
+  document.getElementById('statNeedsService').textContent = needs;
+  document.getElementById('statOutOfOrder').textContent = out;
+  document.getElementById('statLowParts').textContent = low;
+}
+
+/* ============================================================
+   SAVE
+   ============================================================ */
+async function handleSave(){
+  hideBanners();
+  let payload;
+  if(state.mode === 'asset'){
+    if(!state.assetForm.domain || !state.assetForm.assetType){ showErr('Choose a domain and asset type.'); return; }
+    if(!state.assetForm.assetName.trim()){ showErr('Asset name is required.'); return; }
+    payload = {
+      action: 'addAsset',
+      domain: state.assetForm.domain,
+      assetType: state.assetForm.assetType,
+      assetIdOverride: state.assetForm.assetIdOverride,
+      assetName: state.assetForm.assetName,
+      location: state.assetForm.location,
+      status: state.assetForm.status,
+      serviceIntervalDays: state.assetForm.serviceInterval,
+      lastServiced: state.assetForm.lastServiced,
+      purchasePrice: state.assetForm.purchasePrice
+    };
+  } else if(state.mode === 'log'){
+    if(!state.logForm.assetId.trim()){ showErr('Asset ID is required.'); return; }
+    if(!state.logForm.workType){ showErr('Choose a work type.'); return; }
+    const closing = state.logForm.closeByManager;
+    payload = {
+      action: 'addMaintenanceLog',
+      assetId: state.logForm.assetId,
+      workType: state.logForm.workType,
+      description: state.logForm.description,
+      reportedByUser: state.user.displayName,
+      userRole: state.user.role,
+      costUsd: state.logForm.cost,
+      status: closing ? 'Completed' : state.logForm.status,
+      closedByManager: closing ? state.user.displayName : ''
+    };
+  } else {
+    if(!state.partForm.partName.trim()){ showErr('Choose a part.'); return; }
+    if(!state.partForm.delta){ showErr('Enter a non-zero adjustment.'); return; }
+    payload = { action: 'restockPart', partName: state.partForm.partName, delta: state.partForm.delta };
+  }
+  payload.ts = Date.now();
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+
+  const result = await sendToBackend(payload);
+
+  saveBtn.disabled = false; saveBtn.textContent = saveLabelForMode();
+
+  if(result.ok){
+    pushRecent(payload, 'sent');
+    showOk(saveSuccessMessage(payload, result));
+    resetCurrentForm();
+  } else if(result.queued){
+    pushRecent(payload, 'queued');
+    showErr('Offline — entry queued and will sync automatically when connection returns.');
+    resetCurrentForm();
+  } else {
+    showErr('Could not save: ' + (result.message || 'unknown error'));
+  }
+}
+function saveSuccessMessage(payload, result){
+  if(payload.action === 'addAsset') return `Asset ${result.assetId || ''} saved.`;
+  if(payload.action === 'addMaintenanceLog') return `${result.logId || 'Log entry'} saved.`;
+  return `${payload.partName} restocked.`;
+}
+
+async function sendToBackend(payload){
+  if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith('PASTE_')){
+    queuePayload(payload);
+    return { ok:false, queued:true };
+  }
+  if(!navigator.onLine){
+    queuePayload(payload);
+    return { ok:false, queued:true };
+  }
+  try{
+    // text/plain avoids a CORS preflight against the Apps Script Web App.
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({ success:true }));
+    if(data.success === false) return { ok:false, message:data.message };
+    return { ok:true, assetId:data.assetId, logId:data.logId };
+  } catch(e){
+    queuePayload(payload);
+    return { ok:false, queued:true };
+  }
+}
+
+/* ============================================================
+   OFFLINE QUEUE (localStorage — this file is deployed standalone,
+   not run inside the claude.ai artifact sandbox, so this is safe)
+   ============================================================ */
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(CONFIG.QUEUE_KEY) || '[]'); } catch(e){ return []; } }
+function setQueue(q){ localStorage.setItem(CONFIG.QUEUE_KEY, JSON.stringify(q)); updateQueueUI(); }
+function queuePayload(payload){ const q = getQueue(); q.push(payload); setQueue(q); }
+
+async function trySyncQueue(){
+  if(!navigator.onLine) return;
+  let q = getQueue();
+  if(!q.length) return;
+  const statusPill = document.getElementById('statusPill');
+  statusPill.classList.add('syncing');
+  const remaining = [];
+  for(const payload of q){
+    if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith('PASTE_')){ remaining.push(payload); continue; }
+    try{
+      const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({ success:true }));
+      if(data.success === false) remaining.push(payload);
+    } catch(e){ remaining.push(payload); }
+  }
+  setQueue(remaining);
+  statusPill.classList.remove('syncing');
+  markRecentSynced(q.length - remaining.length);
+  if(remaining.length === 0) showOk('Queue synced.');
+}
+
+function updateQueueUI(){
+  const q = getQueue();
+  const btn = document.getElementById('syncBtn');
+  const countEl = document.getElementById('queueCount');
+  if(!btn) return;
+  btn.style.display = q.length ? 'block' : 'none';
+  btn.textContent = `Sync Queue (${q.length})`;
+  if(countEl) countEl.textContent = q.length ? `${q.length} queued offline` : '';
+}
+
+function updateOnlineStatus(){
+  state.online = navigator.onLine;
+  const pill = document.getElementById('statusPill');
+  const text = document.getElementById('statusText');
+  if(!pill) return;
+  pill.classList.toggle('offline', !state.online);
+  text.textContent = state.online ? 'Online' : 'Offline';
+  updateQueueUI();
+}
+
+/* ============================================================
+   RECENT ENTRIES (session log)
+   ============================================================ */
+let recent = [];
+function pushRecent(payload, status){
+  let tag, meta;
+  if(payload.action === 'addAsset'){ tag = payload.assetIdOverride || payload.assetType; meta = payload.assetName; }
+  else if(payload.action === 'addMaintenanceLog'){ tag = payload.assetId; meta = payload.workType; }
+  else { tag = payload.partName; meta = (payload.delta > 0 ? '+' : '') + payload.delta; }
+  recent.unshift({ tag, meta, status });
+  recent = recent.slice(0, 8);
+  renderRecent();
+  updateQueueUI();
+}
+function markRecentSynced(n){
+  let toFlip = n;
+  for(const r of recent){ if(toFlip<=0) break; if(r.status==='queued'){ r.status='sent'; toFlip--; } }
+  renderRecent();
+}
+function renderRecent(){
+  const list = document.getElementById('recentList');
+  if(!list) return;
+  if(!recent.length){ list.innerHTML = '<div class="empty">Nothing logged yet this session.</div>'; return; }
+  list.innerHTML = recent.map(r => `
+    <div class="recentitem">
+      <span class="rtag">${r.tag}</span>
+      <span class="rmeta">${r.meta || ''}</span>
+      <span class="syncbadge ${r.status}">${r.status === 'sent' ? 'Sent' : r.status === 'queued' ? 'Queued' : 'Failed'}</span>
+    </div>`).join('');
+}
+
+/* ============================================================
+   BANNERS / RESET
+   ============================================================ */
+function scrollBannerIntoView(b){ if(typeof b.scrollIntoView === 'function') b.scrollIntoView({behavior:'smooth', block:'center'}); }
+function showErr(msg){ const b=document.getElementById('errBanner'); b.textContent=msg; b.classList.add('show'); scrollBannerIntoView(b); }
+function showOk(msg){ const b=document.getElementById('okBanner'); b.textContent=msg; b.classList.add('show'); scrollBannerIntoView(b); setTimeout(()=>b.classList.remove('show'), 4000); }
+function hideBanners(){ document.getElementById('errBanner').classList.remove('show'); document.getElementById('okBanner').classList.remove('show'); }
+
+function resetCurrentForm(){
+  if(state.mode === 'asset'){
+    state.assetForm = emptyAssetForm();
+    document.querySelectorAll('#domainTiles .tile').forEach(t => t.classList.remove('active'));
+    document.getElementById('assetTypeSelect').innerHTML = '<option value="">— choose domain first —</option>';
+    document.getElementById('assetIdOverride').value = '';
+    document.getElementById('assetIdChip').textContent = '···-··';
+    document.getElementById('assetNameInput').value = '';
+    document.getElementById('locationInput').value = '';
+    document.getElementById('lastServicedInput').value = '';
+    document.getElementById('purchasePriceInput').value = '';
+    applyDefaults();
+    selectStatus(state.settings.statusOptions[0]);
+  } else if(state.mode === 'log'){
+    state.logForm = emptyLogForm();
+    document.getElementById('logAssetIdInput').value = '';
+    document.getElementById('logAssetReadout').style.display = 'none';
+    document.querySelectorAll('#workTypeChips .chip').forEach(c => c.classList.remove('active'));
+    document.getElementById('logDescriptionInput').value = '';
+    document.getElementById('logCostInput').value = '';
+    document.getElementById('closeByManagerCheck').checked = false;
+    selectLogStatus('Open');
+  } else {
+    state.partForm = { partName:'', delta:0 };
+    document.getElementById('partNameInput').value = '';
+    document.getElementById('partDeltaInput').value = '';
+    document.getElementById('partReadout').style.display = 'none';
+    document.getElementById('partNewTotalHelp').textContent = '';
+  }
+  hideBanners();
+}
 </script>
 </body>
 </html>
