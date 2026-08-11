@@ -732,6 +732,22 @@
     assetTypes:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1482700792&single=true&output=csv'
   };
 
+  /* ===== WRITE BACKEND =====
+     Paste your Apps Script Web App /exec URL here (from public/NgaporiRAMS-Code.gs)
+     to persist new assets and work orders to the live sheet. Leave empty to keep
+     writes session-only. */
+  var WRITE_URL = 'https://script.google.com/macros/s/AKfycbz04lMxOZw1TBBFxhrBGxPjDOJWC1otD36PUwLNY6O6nhM_vhAbLZ12h7VjCtgnvpQqpg/exec';
+
+  function postToSheet(action, payload, cb){
+    if (!WRITE_URL){ cb(null); return; }
+    fetch(WRITE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, payload: payload })
+    }).then(function(r){ return r.json(); }).then(function(j){ cb(j); })
+      .catch(function(err){ cb({ ok: false, error: String(err) }); });
+  }
+
   /* ---------- CSV parser (handles quoted fields, commas, embedded newlines) ---------- */
   function parseCsv(text){
     var rows = [], field = '', row = [], inQuotes = false;
@@ -1025,7 +1041,7 @@
         escapeHtml(state.loadErrors.join('; ')) + '.<br>The portal is running on whatever loaded successfully.';
     } else {
       modeFooter.innerHTML = 'Live read from the published Ngapori_RAMS_v2 Google Sheet — ' + counts + '<br>' +
-        '<span style="opacity:0.8;">Submitted work orders and new assets stay in this browser session (the published CSV is read-only).</span>';
+        '<span style="opacity:0.8;">' + (WRITE_URL ? 'Writes (new assets & work orders) are saved to the live sheet via the Apps Script backend.' : 'Writes are session-only — set WRITE_URL to your Apps Script /exec URL to save to the live sheet.') + '</span>';
     }
     renderWoHeader();
     renderAll();
@@ -1481,7 +1497,7 @@
       return;
     }
 
-    state.assets.push({
+    var payload = {
       assetId: assetId,
       assetName: assetName,
       category: regCategory.value,
@@ -1491,15 +1507,28 @@
       status: regStatus.value || 'Operational',
       serviceIntervalDays: Number(document.getElementById('regServiceInterval').value) || 90,
       lastServiced: document.getElementById('regLastServiced').value || '',
-      nextServiceDue: '',
       purchasePrice: Number(document.getElementById('regPurchasePrice').value) || 0,
-      dateCreated: new Date().toISOString().slice(0, 10)
-    });
+      qrBaseUrl: state.settings.qrBaseUrl || ''
+    };
 
-    registerModal.classList.remove('show');
-    renderKpis();
-    selectAsset(assetId);
-    showToast(assetId, 'Added to this session — not yet written to the live sheet (read-only CSV).');
+    var regBtn = document.getElementById('regSubmitBtn');
+    regBtn.disabled = true;
+    regBtn.textContent = 'Adding…';
+
+    postToSheet('registerAsset', payload, function(res){
+      regBtn.disabled = false;
+      regBtn.textContent = 'Add Asset';
+      if (!res || !res.ok){
+        regError.textContent = (res && res.error) ? ('Save failed: ' + res.error) : 'Save failed — set WRITE_URL to your Apps Script /exec URL (see NgaporiRAMS-Code.gs).';
+        regError.classList.add('show');
+        return;
+      }
+      registerModal.classList.remove('show');
+      state.assets.push(Object.assign({}, payload, { nextServiceDue: '', dateCreated: new Date().toISOString().slice(0, 10) }));
+      renderKpis();
+      selectAsset(assetId);
+      showToast(assetId, 'Added to ASSET_REGISTRY on the live sheet.');
+    });
   });
 
   /* =========================================================================
@@ -1720,45 +1749,51 @@
       return { name: name, quantity: state.selectedParts[name] };
     });
 
-    var logId = nextLogId();
-    var ts = new Date().toISOString();
-
     var entry = {
-      logId: logId,
-      timestamp: ts,
       assetId: state.selectedAsset.assetId,
       workType: state.workType,
       description: descriptionInput.value.trim(),
-      workPerformed: document.getElementById('workPerformedInput').value.trim(),
       reportedBy: state.currentUser.displayName,
-      assignedTo: document.getElementById('woAssignedTo').value.trim() || state.currentUser.displayName,
       role: state.currentUser.role,
-      priority: state.priority,
       cost: document.getElementById('costInput').value || 0,
       status: state.workStatus,
-      materialsNote: document.getElementById('materialsNoteInput').value.trim(),
+      parts: partsPayload,
+      managerSignoff: document.getElementById('managerSignoffInput').value.trim(),
       markOutOfOrder: document.getElementById('markOutOfOrder').checked
     };
 
-    /* session-only mutations */
-    (partsPayload).forEach(function(p){
-      var part = state.parts.find(function(x){ return x.name === p.name; });
-      if (part){
-        part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
-        part.status = (part.onHand <= part.minimum * state.settings.lowStockMultiplier) ? 'LOW' : 'OK';
-      }
-    });
-    if (entry.markOutOfOrder){
-      var asset = state.assets.find(function(a){ return a.assetId === entry.assetId; });
-      if (asset) asset.status = 'Out of Order';
-    }
+    var woBtn = document.getElementById('submitBtn');
+    woBtn.disabled = true;
+    woBtn.textContent = 'Submitting…';
 
-    localRecentLog.unshift(entry);
-    showToast(logId, 'Work order logged for ' + entry.assetId + ' (session-only).');
-    renderKpis();
-    renderAssetPlate();
-    renderRecentLog();
-    resetForm(true);
+    postToSheet('submitLogEntry', entry, function(res){
+      woBtn.textContent = 'Submit Work Order';
+      if (!res || !res.ok){
+        woBtn.disabled = false;
+        showToast('Error', (res && res.error) ? res.error : 'Submit failed — set WRITE_URL to your Apps Script /exec URL.');
+        return;
+      }
+      entry.logId = res.logId;
+      entry.timestamp = res.timestamp;
+      entry.priority = state.priority;
+      (partsPayload).forEach(function(p){
+        var part = state.parts.find(function(x){ return x.name === p.name; });
+        if (part){
+          part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
+          part.status = (part.onHand <= part.minimum * state.settings.lowStockMultiplier) ? 'LOW' : 'OK';
+        }
+      });
+      if (entry.markOutOfOrder){
+        var asset = state.assets.find(function(a){ return a.assetId === entry.assetId; });
+        if (asset) asset.status = 'Out of Order';
+      }
+      localRecentLog.unshift(entry);
+      showToast(res.logId, 'Work order written to MAINTENANCE_LOG.');
+      renderKpis();
+      renderAssetPlate();
+      renderRecentLog();
+      resetForm(true);
+    });
   }
 
   function renderRecentLog(){
