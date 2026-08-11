@@ -1508,7 +1508,8 @@
       serviceIntervalDays: Number(document.getElementById('regServiceInterval').value) || 90,
       lastServiced: document.getElementById('regLastServiced').value || '',
       purchasePrice: Number(document.getElementById('regPurchasePrice').value) || 0,
-      qrBaseUrl: state.settings.qrBaseUrl || ''
+      qrBaseUrl: state.settings.qrBaseUrl || '',
+      photos: regPhotos.map(function(p){ return { dataUrl: p.dataUrl, mimeType: p.mimeType, filename: p.filename }; })
     };
 
     var regBtn = document.getElementById('regSubmitBtn');
