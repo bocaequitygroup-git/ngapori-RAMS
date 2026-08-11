@@ -505,8 +505,8 @@
         <div class="wo-divider"></div>
 
         <div class="wo-block">
-          <div class="k">Asset Information</div>
-          <div class="wo-asset-line" id="woAssetLine"><span class="amissing">No asset selected — scan or look one up above.</span></div>
+          <div class="k">Asset Information (optional)</div>
+          <div class="wo-asset-line" id="woAssetLine"><span class="amissing">No asset selected. Scan or look one up above if this work order is for a specific asset — otherwise leave blank for general maintenance.</span></div>
         </div>
 
         <div class="wo-divider"></div>
@@ -522,11 +522,6 @@
             <select id="workTypeSelect"></select>
           </div>
 
-          <div class="field">
-            <label>Parts / Materials Needed</label>
-            <div class="parts-list" id="partsList"></div>
-            <textarea id="materialsNoteInput" placeholder="Describe any part or material needed that isn't in the list above — e.g. &quot;2x 5/16&quot; fence staples, box of gorilla tape, replacement mower belt (not in PARTS_INVENTORY yet).&quot; This goes on the work order even if nothing is deducted from inventory." style="margin-top:8px; min-height:64px;"></textarea>
-          </div>
         </div>
 
         <div class="wo-divider"></div>
@@ -969,8 +964,7 @@
     workType: null,
     workStatus: null,
     priority: null,
-    servicedBy: 'Ranch Crew',
-    selectedParts: {}
+    servicedBy: 'Ranch Crew'
   };
 
   /* =========================================================================
@@ -1550,7 +1544,7 @@
   function renderWoAssetLine(){
     var el = document.getElementById('woAssetLine');
     if (!state.selectedAsset){
-      el.innerHTML = '<span class="amissing">No asset selected — scan or look one up above.</span>';
+      el.innerHTML = '<span class="amissing">No asset selected. Scan or look one up above if this work order is for a specific asset — otherwise leave blank for general maintenance.</span>';
       return;
     }
     var a = state.selectedAsset;
@@ -1558,7 +1552,11 @@
       '<span class="aid">' + a.assetId + '</span> — ' + a.assetName +
       '<br><span style="color:var(--ink-soft); font-size:12px;">' +
         a.category + (a.assetType ? ' · ' + a.assetType : '') + ' · ' + a.location +
-      '</span>';
+      '</span>' +
+      '<br><button type="button" id="woAssetClearBtn" class="btn btn-secondary" style="width:auto; padding:6px 12px; font-size:12px; margin-top:8px;">Not for this asset — clear</button>';
+    document.getElementById('woAssetClearBtn').addEventListener('click', function(){
+      selectAsset(null);
+    });
   }
 
   function renderPrioritySelect(){
@@ -1649,76 +1647,14 @@
   }
   vendorNameInput.addEventListener('input', updateSubmitState);
 
-  function renderPartsList(){
-    var wrap = document.getElementById('partsList');
-    wrap.innerHTML = '';
-    if (!state.parts.length){
-      wrap.innerHTML = '<div class="no-parts-note">No parts in PARTS_INVENTORY yet.</div>';
-      return;
-    }
-    var hint = document.createElement('div');
-    hint.className = 'no-parts-note';
-    hint.textContent = 'Nothing selected — tap a part to add it.';
-    wrap.appendChild(hint);
 
-    state.parts.forEach(function(p){
-      var row = document.createElement('div');
-      row.className = 'part-row';
-      var low = p.status === 'LOW';
-      row.innerHTML =
-        '<input type="checkbox" id="part-' + cssSafe(p.name) + '">' +
-        '<span class="pname">' + p.name + '<br><span class="stock-tag ' + (low ? 'low' : '') + '">' + p.onHand + ' on hand' + (low ? ' · LOW' : '') + '</span></span>' +
-        '<div class="qty-stepper" style="display:none;">' +
-          '<button type="button" class="qty-minus">−</button>' +
-          '<input type="number" min="1" value="1" class="qty-input">' +
-          '<button type="button" class="qty-plus">+</button>' +
-        '</div>';
-      var checkbox = row.querySelector('input[type=checkbox]');
-      checkbox.checked = false;
-      var stepper = row.querySelector('.qty-stepper');
-      var qtyInput = row.querySelector('.qty-input');
-
-      function applyCheckedState(){
-        stepper.style.display = checkbox.checked ? 'flex' : 'none';
-        row.classList.toggle('selected', checkbox.checked);
-        if (checkbox.checked) state.selectedParts[p.name] = Number(qtyInput.value) || 1;
-        else delete state.selectedParts[p.name];
-        var currentHint = wrap.querySelector('.no-parts-note');
-        if (currentHint){
-          var count = Object.keys(state.selectedParts).length;
-          currentHint.textContent = count ? count + ' part' + (count > 1 ? 's' : '') + ' selected.' : 'Nothing selected — tap a part to add it.';
-        }
-      }
-
-      checkbox.addEventListener('change', applyCheckedState);
-      row.addEventListener('click', function(e){
-        if (e.target === checkbox || e.target.closest('.qty-stepper')) return;
-        checkbox.checked = !checkbox.checked;
-        applyCheckedState();
-      });
-      row.querySelector('.qty-minus').addEventListener('click', function(){
-        qtyInput.value = Math.max(1, (Number(qtyInput.value) || 1) - 1);
-        state.selectedParts[p.name] = Number(qtyInput.value);
-      });
-      row.querySelector('.qty-plus').addEventListener('click', function(){
-        qtyInput.value = (Number(qtyInput.value) || 1) + 1;
-        state.selectedParts[p.name] = Number(qtyInput.value);
-      });
-      qtyInput.addEventListener('input', function(){
-        if (checkbox.checked) state.selectedParts[p.name] = Math.max(1, Number(qtyInput.value) || 1);
-      });
-      wrap.appendChild(row);
-    });
-  }
-
-  function cssSafe(s){ return s.replace(/[^a-z0-9]/gi, '-'); }
 
   var descriptionInput = document.getElementById('descriptionInput');
   descriptionInput.addEventListener('input', updateSubmitState);
 
   function updateSubmitState(){
     var vendorOk = state.servicedBy !== 'Vendor / Outside Shop' || vendorNameInput.value.trim().length > 0;
-    var ok = state.selectedAsset && state.workType && state.workStatus && state.priority &&
+    var ok = state.workType && state.workStatus && state.priority &&
       descriptionInput.value.trim().length > 0 && vendorOk;
     document.getElementById('submitBtn').disabled = !ok;
   }
@@ -1746,21 +1682,16 @@
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
-    var partsPayload = Object.keys(state.selectedParts).map(function(name){
-      return { name: name, quantity: state.selectedParts[name] };
-    });
-
     var entry = {
-      assetId: state.selectedAsset.assetId,
+      assetId: state.selectedAsset ? state.selectedAsset.assetId : '',
       workType: state.workType,
       description: descriptionInput.value.trim(),
       reportedBy: state.currentUser.displayName,
       role: state.currentUser.role,
       cost: document.getElementById('costInput').value || 0,
       status: state.workStatus,
-      parts: partsPayload,
       managerSignoff: document.getElementById('managerSignoffInput').value.trim(),
-      markOutOfOrder: document.getElementById('markOutOfOrder').checked
+      markOutOfOrder: !!(state.selectedAsset && document.getElementById('markOutOfOrder').checked)
     };
 
     var woBtn = document.getElementById('submitBtn');
@@ -1777,13 +1708,6 @@
       entry.logId = res.logId;
       entry.timestamp = res.timestamp;
       entry.priority = state.priority;
-      (partsPayload).forEach(function(p){
-        var part = state.parts.find(function(x){ return x.name === p.name; });
-        if (part){
-          part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
-          part.status = (part.onHand <= part.minimum * state.settings.lowStockMultiplier) ? 'LOW' : 'OK';
-        }
-      });
       if (entry.markOutOfOrder){
         var asset = state.assets.find(function(a){ return a.assetId === entry.assetId; });
         if (asset) asset.status = 'Out of Order';
@@ -1813,8 +1737,7 @@
       el.innerHTML =
         '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
         '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
-        (entry.materialsNote ? '<div class="desc" style="font-style:italic; color:var(--ink-soft);">Materials: ' + escapeHtml(entry.materialsNote) + '</div>' : '') +
-        '<div class="row2"><span>' + entry.assetId + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
+        '<div class="row2"><span>' + (entry.assetId || 'General maintenance') + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
       list.appendChild(el);
     });
   }
@@ -1831,7 +1754,6 @@
     state.workType = null;
     state.workStatus = null;
     state.priority = null;
-    state.selectedParts = {};
     descriptionInput.value = '';
     document.getElementById('workPerformedInput').value = '';
     document.getElementById('hoursInput').value = '';
@@ -1842,11 +1764,9 @@
     document.getElementById('damageFlagRow').style.display = 'none';
     document.getElementById('woNumber').textContent = 'Assigned on submit';
     if (state.currentUser) document.getElementById('woAssignedTo').value = state.currentUser.displayName;
-    document.getElementById('materialsNoteInput').value = '';
     document.getElementById('workTypeSelect').value = '';
     document.getElementById('prioritySelect').value = '';
     document.getElementById('statusSelect').value = '';
-    renderPartsList();
     selectServicedBy('Ranch Crew');
     updateSubmitState();
   }
@@ -1873,7 +1793,6 @@
     renderPrioritySelect();
     renderStatusSelect();
     renderServicedByToggle();
-    renderPartsList();
     renderAssetPlate();
     renderWoAssetLine();
     renderRecentLog();
