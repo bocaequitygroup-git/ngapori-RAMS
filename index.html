@@ -381,6 +381,10 @@
     text-align:center; font-size:11px; color:var(--ink-soft); padding:22px 20px 10px; line-height:1.6;
   }
 
+  .load-banner{
+    text-align:center; padding:14px 16px; font-size:12px; color:var(--ink-soft);
+  }
+
   @media (prefers-reduced-motion: reduce){
     .toast{ transition:none; }
   }
@@ -403,18 +407,19 @@
   <div class="login-card">
     <h2>Clock In</h2>
     <div class="lead">Pick your name and enter your 4-digit PIN to log work against the ranch's assets.</div>
+    <div id="loginLoad" class="load-banner">Loading staff directory from Google Sheet…</div>
     <div class="field">
       <label for="loginUser">Username</label>
-      <select id="loginUser"></select>
+      <select id="loginUser" disabled></select>
     </div>
     <div class="field">
       <label for="loginPin">PIN</label>
       <input type="password" id="loginPin" inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="••••" class="pin-dots">
     </div>
-    <button class="btn btn-primary" id="loginBtn">Clock In</button>
+    <button class="btn btn-primary" id="loginBtn" disabled>Clock In</button>
     <div class="error-text" id="loginError">That PIN doesn't match this user. Try again.</div>
   </div>
-  <footer class="credit">Connects to the ASSET_REGISTRY, MAINTENANCE_LOG, PARTS_INVENTORY, USERS and SETTINGS sheets in Ngapori_RAMS_v2.</footer>
+  <footer class="credit">Reads live from the published ASSET_REGISTRY, MAINTENANCE_LOG, PARTS_INVENTORY, CAPEX_PLAN, USERS, SETTINGS and ASSET_TYPES sheets in Ngapori_RAMS_v2.</footer>
 </div>
 
 <!-- ======================= APP ======================= -->
@@ -709,248 +714,257 @@
 (function(){
 
   /* =========================================================================
-     DATA LAYER
-     — This file is hosted as a plain static page (NOT served by Apps Script),
-       so window.google.script.run does not exist here — that API only works
-       when a page is rendered from inside an Apps Script HtmlService project.
-     — Instead, Code.gs is deployed separately as an Apps Script Web App (a
-       JSON endpoint), and this page talks to it over fetch(). Paste your
-       deployment's /exec URL into API_URL below after deploying Code.gs.
-     — If API_URL is left unset, the page falls back to an in-memory demo mode
-       seeded with sample data, so the flow is still click-through-able
-       without a deployment.
+     DATA LAYER — reads live from the published Google Sheet CSV endpoints.
+     The published CSVs are READ-ONLY, so submitted work orders and newly
+     registered assets are kept for this browser session only (they update the
+     on-screen KPIs, asset plate and recent log, but are not written back to the
+     sheet). To persist writes, republish with an Apps Script / Sheets API
+     endpoint and swap the backend functions below.
   ========================================================================= */
 
-  var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE'; // ends in /exec
-
-  var HAS_BACKEND = !!(API_URL && API_URL.indexOf('PASTE_YOUR_') !== 0);
-
-  function callBackend(action, payload){
-    return fetch(API_URL, {
-      method: 'POST',
-      // text/plain avoids a CORS preflight (OPTIONS) request, which Apps
-      // Script Web Apps don't handle — Code.gs still parses it as JSON.
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: action, payload: payload || {} })
-    })
-      .then(function(res){
-        if (!res.ok) throw new Error('HTTP ' + res.status + ' from Apps Script Web App.');
-        return res.json();
-      })
-      .then(function(json){
-        if (json && json.error) throw new Error(json.error);
-        return json.result;
-      });
-  }
-
-  var DEMO_ASSET_TYPES = [
-    { domain: 'Equipment', type: 'Tractor', prefix: 'EQ-TRACTOR', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'UTV', prefix: 'EQ-UTV', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Generator', prefix: 'EQ-GEN', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Seeder', prefix: 'EQ-SEEDER', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Solar Array', prefix: 'EQ-SOLAR', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Water Pump', prefix: 'EQ-PUMP', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Portable Water Tank', prefix: 'EQ-TANK', suffixStyle: 'numeric' },
-    { domain: 'Equipment', type: 'Livestock Scale', prefix: 'EQ-SCALE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Fence Line', prefix: 'INF-FENCE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Gate', prefix: 'INF-GATE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Energizer', prefix: 'INF-ENERGIZER', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Hydrant', prefix: 'INF-HYDRANT', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Water Line (Utility Check)', prefix: 'INF-WATERLINE', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Barn', prefix: 'INF-BARN', suffixStyle: 'alpha' },
-    { domain: 'Infrastructure', type: 'Storage Shed', prefix: 'INF-SHED', suffixStyle: 'numeric' },
-    { domain: 'Infrastructure', type: 'Hay Barn', prefix: 'INF-HAYBARN', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Tank', prefix: 'WATER-TANK', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Trough', prefix: 'WATER-TROUGH', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Frost-Free Hydrant', prefix: 'WATER-HYDRANT', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Irrigation Pump', prefix: 'WATER-PUMP', suffixStyle: 'numeric' },
-    { domain: 'Water System', type: 'Water Line (Forage/Irrigation)', prefix: 'WATER-LINE', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Feed Bin', prefix: 'FEED-BIN', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Feed Hopper', prefix: 'FEED-HOPPER', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Mineral Feeder', prefix: 'FEED-MINERAL', suffixStyle: 'numeric' },
-    { domain: 'Feed System', type: 'Fertilizer Storage', prefix: 'FEED-FERT', suffixStyle: 'numeric' },
-    { domain: 'Poultry Tractor', type: 'Poultry Tractor', prefix: 'PT-TRACTOR', suffixStyle: 'numeric' },
-    { domain: 'Security Checkpoint', type: 'Checkpoint', prefix: 'SEC-POINT', suffixStyle: 'alpha' },
-    { domain: 'Harvest System', type: 'Harvest Bin', prefix: 'HARVEST-BIN', suffixStyle: 'numeric' },
-    { domain: 'Harvest System', type: 'Hay Bale Lot', prefix: 'HARVEST-LOT', suffixStyle: 'numeric' },
-    { domain: 'Harvest System', type: 'Silage Pit', prefix: 'HARVEST-SILAGE', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Medicine Bottle', prefix: 'INV-MED', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Chemical', prefix: 'INV-CHEM', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Tool', prefix: 'INV-TOOL', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Spare Part', prefix: 'INV-PART', suffixStyle: 'numeric' },
-    { domain: 'Inventory', type: 'Feed Bag', prefix: 'INV-FEED', suffixStyle: 'numeric' }
-  ];
-  var DEMO_DOMAIN_OPTIONS = (function(){
-    var seen = [], out = [];
-    DEMO_ASSET_TYPES.forEach(function(t){ if (seen.indexOf(t.domain) === -1){ seen.push(t.domain); out.push(t.domain); } });
-    return out;
-  })();
-
-  var DEMO = {
-    settings: {
-      statusOptions: ['Operational', 'Needs Service', 'Out of Order'],
-      domainOptions: DEMO_DOMAIN_OPTIONS,
-      assetTypes: DEMO_ASSET_TYPES,
-      workTypes: ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'],
-      roles: ['Ranch Worker', 'Ranch Manager', 'Executive'],
-      defaultServiceIntervalDays: 90,
-      lowStockMultiplier: 1,
-      overdueGraceDays: 0
-    },
-    users: [
-      { username: 'worker1', pin: '1234', displayName: 'J. Doe', role: 'Ranch Worker' },
-      { username: 'worker2', pin: '1234', displayName: 'R. Smith', role: 'Ranch Worker' },
-      { username: 'manager1', pin: '5678', displayName: 'M. Vance', role: 'Ranch Manager' },
-      { username: 'founder', pin: '9999', displayName: 'Founder', role: 'Executive' }
-    ],
-    assets: [
-      { assetId: 'TRAC-01', assetName: 'John Deere 5075E Tractor', category: 'Equipment', assetType: 'Tractor', location: 'Equipment Yard', status: 'Operational', serviceIntervalDays: 90, lastServiced: '2026-06-01', nextServiceDue: '2026-08-30', purchasePrice: 55000 }
-    ],
-    parts: [
-      { name: 'Tractor Oil Filter', onHand: 6, minimum: 2, status: 'OK' }
-    ]
+  var CSV_URLS = {
+    assetRegistry:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=827432641&single=true&output=csv',
+    maintenanceLog: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=548316161&single=true&output=csv',
+    partsInventory:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1759849016&single=true&output=csv',
+    capexPlan:       'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1651068684&single=true&output=csv',
+    users:           'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=346021084&single=true&output=csv',
+    settings:        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1074991317&single=true&output=csv',
+    assetTypes:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM02HuMHLqJULbCQeVT_BevFB99EhCgVdHLrVFNBiO4ra0D4OHYiuCzphgAWMD_dvp1tRTDHNPAlSG/pub?gid=1482700792&single=true&output=csv'
   };
 
-  var demoLogIdSeq = 1001;
-  var demoLog = [
-    { logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', role: 'Ranch Worker', cost: 0, status: 'Completed' }
-  ];
-
-  function backendGetInitialData(cb){
-    if (HAS_BACKEND){
-      callBackend('getInitialData').then(cb).catch(function(err){
-        showToast('Load failed', 'Could not reach the sheet: ' + (err && err.message ? err.message : err));
-      });
-    } else {
-      setTimeout(function(){ cb({ users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings }); }, 120);
-    }
-  }
-
-  function backendAuthenticate(username, pin, cb){
-    if (HAS_BACKEND){
-      callBackend('authenticate', { username: username, pin: pin }).then(cb).catch(function(err){
-        showToast('Sign-in failed', String(err && err.message ? err.message : err));
-      });
-    } else {
-      var match = DEMO.users.find(function(u){ return u.username === username && u.pin === pin; });
-      setTimeout(function(){ cb(match ? { username: match.username, displayName: match.displayName, role: match.role } : null); }, 150);
-    }
-  }
-
-  function backendSuggestAssetId(assetType, cb){
-    if (HAS_BACKEND){
-      callBackend('suggestNextAssetId', { assetType: assetType }).then(cb).catch(function(err){
-        showToast('Couldn\'t suggest ID', String(err && err.message ? err.message : err));
-      });
-    } else {
-      var typeInfo = DEMO_ASSET_TYPES.find(function(t){ return t.type === assetType; });
-      var prefix = typeInfo ? typeInfo.prefix : 'AST';
-      var suffixStyle = typeInfo ? typeInfo.suffixStyle : 'numeric';
-      var existingSuffixes = state.assets
-        .filter(function(a){ return a.assetId && a.assetId.toUpperCase().indexOf(prefix.toUpperCase() + '-') === 0; })
-        .map(function(a){ return a.assetId.substring(prefix.length + 1); });
-
-      var suggestion;
-      if (suffixStyle === 'alpha'){
-        var maxLetterCode = 'A'.charCodeAt(0) - 1;
-        existingSuffixes.forEach(function(s){
-          var m = s.match(/^([A-Za-z]+)$/);
-          if (m && m[1].length === 1){
-            var code = m[1].toUpperCase().charCodeAt(0);
-            if (code > maxLetterCode) maxLetterCode = code;
-          }
-        });
-        suggestion = prefix + '-' + String.fromCharCode(maxLetterCode + 1);
+  /* ---------- CSV parser (handles quoted fields, commas, embedded newlines) ---------- */
+  function parseCsv(text){
+    var rows = [], field = '', row = [], inQuotes = false;
+    for (var i = 0; i < text.length; i++){
+      var c = text[i], n = text[i+1];
+      if (inQuotes){
+        if (c === '"' && n === '"'){ field += '"'; i++; }
+        else if (c === '"'){ inQuotes = false; }
+        else field += c;
       } else {
-        var maxNum = 0;
-        existingSuffixes.forEach(function(s){
-          var n = parseInt(s, 10);
-          if (!isNaN(n) && n > maxNum) maxNum = n;
-        });
-        var next = maxNum + 1;
-        suggestion = prefix + '-' + (next < 10 ? '0' + next : next);
+        if (c === '"') inQuotes = true;
+        else if (c === ','){ row.push(field); field = ''; }
+        else if (c === '\r'){ continue; }
+        else if (c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+        else field += c;
       }
-      setTimeout(function(){ cb(suggestion); }, 120);
     }
+    if (field !== '' || row.length){ row.push(field); rows.push(row); }
+    return rows;
   }
 
-  function backendRegisterAsset(data, cb, errCb){
-    if (HAS_BACKEND){
-      callBackend('registerAsset', data).then(cb).catch(function(err){
-        var msg = String(err && err.message ? err.message : err);
-        if (errCb) errCb(msg); else showToast('Failed', msg);
-      });
-    } else {
-      var exists = DEMO.assets.some(function(a){ return a.assetId.toLowerCase() === String(data.assetId).toLowerCase(); });
-      if (exists){ if (errCb) errCb('Asset ID "' + data.assetId + '" already exists in ASSET_REGISTRY.'); return; }
-      setTimeout(function(){
-        DEMO.assets.push({
-          assetId: data.assetId, assetName: data.assetName, category: data.category, assetType: data.assetType || '', location: data.location,
-          status: data.status || 'Operational', serviceIntervalDays: Number(data.serviceIntervalDays) || 90,
-          lastServiced: data.lastServiced || '', nextServiceDue: '', purchasePrice: Number(data.purchasePrice) || 0,
-          identifierType: data.identifierType || '', identifierNumber: data.identifierNumber || '',
-          manufacturer: data.manufacturer || '', dateCreated: new Date().toISOString().slice(0, 10),
-          photoUrls: (data.photos || []).map(function(_, i){ return 'demo://photo-' + (i + 1); }).join(', ')
-        });
-        cb({ assetId: data.assetId, data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } });
-      }, 180);
-    }
+  function fetchCsv(url){
+    return fetch(url, { cache: 'no-store' }).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(parseCsv);
   }
 
-  function backendSubmitLogEntry(entry, cb){
-    if (HAS_BACKEND){
-      callBackend('submitLogEntry', entry).then(cb).catch(function(err){
-        showToast('Submit failed', String(err && err.message ? err.message : err));
-      });
-    } else {
-      demoLogIdSeq += 1;
-      var logId = 'LOG-' + demoLogIdSeq;
-      var ts = new Date();
-      demoLog.unshift({
-        logId: logId, timestamp: ts.toISOString(), assetId: entry.assetId, workType: entry.workType,
-        description: entry.description, reportedBy: entry.reportedBy, role: entry.role,
-        cost: Number(entry.cost) || 0, status: entry.status
-      });
-      (entry.parts || []).forEach(function(p){
-        var part = DEMO.parts.find(function(x){ return x.name === p.name; });
-        if (part){
-          part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
-          part.status = (part.onHand <= part.minimum * DEMO.settings.lowStockMultiplier) ? 'LOW' : 'OK';
+  function findHeaderRow(rows, firstCol){
+    for (var i = 0; i < rows.length; i++){
+      if (rows[i] && rows[i][0] === firstCol) return i;
+    }
+    return -1;
+  }
+
+  function rowsToObject(rows, headerIdx){
+    var header = rows[headerIdx];
+    var out = [];
+    for (var i = headerIdx + 1; i < rows.length; i++){
+      var r = rows[i];
+      if (!r || r.length === 0) continue;
+      var empty = r.every(function(c){ return c === '' || c == null; });
+      if (empty) continue;
+      var obj = {};
+      for (var h = 0; h < header.length; h++){
+        obj[header[h]] = r[h] !== undefined ? r[h] : '';
+      }
+      out.push(obj);
+    }
+    return out;
+  }
+
+  function dateOnly(s){ return (s || '').toString().slice(0, 10); }
+  function num(s, def){ var n = parseFloat(s); return isNaN(n) ? (def || 0) : n; }
+
+  /* ---------- per-sheet mappers ---------- */
+  function mapAssets(rows){
+    var h = findHeaderRow(rows, 'Asset_ID');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      return {
+        assetId: r.Asset_ID,
+        assetName: r.Asset_Name,
+        category: r.Category,
+        assetType: r.Asset_Type || '',
+        location: r.Location || '',
+        status: r.Status || 'Operational',
+        serviceIntervalDays: num(r.Service_Interval_Days, 90),
+        lastServiced: dateOnly(r.Last_Serviced),
+        nextServiceDue: dateOnly(r.Next_Service_Due),
+        purchasePrice: num(r.Purchase_Price_USD, 0),
+        qrCodeUrl: r.QR_Code_URL || '',
+        manufacturer: r.Manufacturer || '',
+        dateCreated: dateOnly(r.Date_Created)
+      };
+    }).filter(function(a){ return a.assetId; });
+  }
+
+  function mapParts(rows, lowMult){
+    var h = findHeaderRow(rows, 'Part_Name');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      var onHand = num(r.On_Hand, 0), minimum = num(r.Minimum, 0);
+      var status = r.Status || (onHand <= minimum * lowMult ? 'LOW' : 'OK');
+      return { name: r.Part_Name, onHand: onHand, minimum: minimum, status: status };
+    }).filter(function(p){ return p.name; });
+  }
+
+  function mapLog(rows){
+    var h = findHeaderRow(rows, 'Log_ID');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      return {
+        logId: r.Log_ID,
+        timestamp: r.Timestamp || '',
+        assetId: r.Asset_ID || '',
+        workType: r.Work_Type || '',
+        description: r.Description || '',
+        reportedBy: r.Reported_By_User || '',
+        role: r.User_Role || '',
+        cost: num(r.Cost_USD, 0),
+        status: r.Status || '',
+        closedBy: r.Closed_By_Manager || ''
+      };
+    }).filter(function(l){ return l.logId; });
+  }
+
+  function mapUsers(rows){
+    var h = findHeaderRow(rows, 'Username');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      return {
+        username: r.Username,
+        pin: (r.PIN || '').toString(),
+        displayName: r.Display_Name || r.Username,
+        role: r.Role || 'Ranch Worker',
+        active: (r.Active === '' || r.Active === undefined) ? true : (/^(yes|true|1)$/i.test(r.Active))
+      };
+    }).filter(function(u){ return u.username && u.active; });
+  }
+
+  function mapAssetTypes(rows){
+    var h = findHeaderRow(rows, 'Domain');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      return { domain: r.Domain, type: r.Asset_Type, prefix: r.Prefix, suffixStyle: r.Suffix_Style || 'numeric' };
+    }).filter(function(t){ return t.domain && t.type; });
+  }
+
+  function mapCapex(rows){
+    var h = findHeaderRow(rows, 'Item');
+    if (h < 0) return [];
+    return rowsToObject(rows, h).map(function(r){
+      return { item: r.Item, reason: r.Reason || '', targetYear: num(r.Target_Year, 0), estimatedCost: num(r.Estimated_Cost, 0), status: r.Status || '' };
+    }).filter(function(c){ return c.item; });
+  }
+
+  function mapSettings(rows){
+    var statusOptions = [], workTypes = [], roles = [];
+    var params = {};
+    var i = findHeaderRow(rows, 'Asset Status Options');
+    if (i >= 0){
+      for (var j = i + 1; j < rows.length; j++){
+        var r = rows[j];
+        if (!r) continue;
+        if (r[0] === 'Parameter') break;
+        if (r[0]) statusOptions.push(r[0]);
+        if (r[2]) workTypes.push(r[2]);
+        if (r[3]) roles.push(r[3]);
+      }
+    }
+    var p = findHeaderRow(rows, 'Parameter');
+    if (p >= 0){
+      for (var k = p + 1; k < rows.length; k++){
+        var rr = rows[k];
+        if (!rr || !rr[0]) continue;
+        params[rr[0]] = rr[1];
+      }
+    }
+    return {
+      statusOptions: statusOptions.length ? statusOptions : ['Operational', 'Needs Service', 'Out of Order'],
+      workTypes: workTypes.length ? workTypes : ['Inspection', 'Service', 'Damage / Repair Needed', 'Upgrade'],
+      roles: roles.length ? roles : ['Ranch Worker', 'Ranch Manager', 'Executive'],
+      defaultServiceIntervalDays: num(params.Default_Service_Interval_Days, 90),
+      lowStockMultiplier: num(params.Low_Stock_Alert_Threshold_Multiplier, 1),
+      overdueGraceDays: num(params.Overdue_Grace_Days, 0),
+      qrBaseUrl: params.QR_Base_URL || ''
+    };
+  }
+
+  /* ---------- initial load ---------- */
+  function loadAllData(cb){
+    var keys = Object.keys(CSV_URLS);
+    var results = {};
+    var done = 0, failed = [];
+    keys.forEach(function(key){
+      fetchCsv(CSV_URLS[key]).then(function(rows){
+        results[key] = rows;
+      }).catch(function(err){
+        failed.push(key + ': ' + (err && err.message ? err.message : err));
+        results[key] = [];
+      }).then(function(){
+        done++;
+        if (done === keys.length){
+          var settings = mapSettings(results.settings || []);
+          var assetTypes = mapAssetTypes(results.assetTypes || []);
+          var domainOptions = [];
+          assetTypes.forEach(function(t){ if (domainOptions.indexOf(t.domain) === -1) domainOptions.push(t.domain); });
+          settings.assetTypes = assetTypes;
+          settings.domainOptions = domainOptions.length ? domainOptions : ['Equipment', 'Infrastructure', 'Water System'];
+          var parts = mapParts(results.partsInventory || [], settings.lowStockMultiplier);
+          var data = {
+            settings: settings,
+            users: mapUsers(results.users || []),
+            assets: mapAssets(results.assetRegistry || []),
+            parts: parts,
+            log: mapLog(results.maintenanceLog || []),
+            capex: mapCapex(results.capexPlan || []),
+            loadErrors: failed
+          };
+          cb(data);
         }
       });
-      if (entry.markOutOfOrder){
-        var asset = DEMO.assets.find(function(a){ return a.assetId === entry.assetId; });
-        if (asset) asset.status = 'Out of Order';
-      }
-      setTimeout(function(){ cb({ logId: logId, timestamp: ts.toISOString(), data: { users: DEMO.users, assets: DEMO.assets, parts: DEMO.parts, settings: DEMO.settings } }); }, 180);
-    }
+    });
   }
 
   /* =========================================================================
      STATE
   ========================================================================= */
-
   var state = {
     settings: null,
     users: [],
     assets: [],
     parts: [],
+    log: [],
+    capex: [],
     currentUser: null,
     selectedAsset: null,
     workType: null,
     workStatus: null,
     priority: null,
-    selectedParts: {}   // { partName: qty }
+    servicedBy: 'Ranch Crew',
+    selectedParts: {}
   };
 
   /* =========================================================================
      LOGIN
   ========================================================================= */
-
   var loginUserSel = document.getElementById('loginUser');
   var loginPinInput = document.getElementById('loginPin');
   var loginBtn = document.getElementById('loginBtn');
   var loginError = document.getElementById('loginError');
+  var loginLoad = document.getElementById('loginLoad');
 
   function populateLoginUsers(){
     loginUserSel.innerHTML = '';
@@ -960,6 +974,16 @@
       opt.textContent = u.displayName + ' — ' + u.role;
       loginUserSel.appendChild(opt);
     });
+    if (state.users.length){
+      loginUserSel.disabled = false;
+      loginBtn.disabled = false;
+      loginPinInput.disabled = false;
+      loginLoad.textContent = 'Loaded ' + state.users.length + ' staff from the USERS sheet.';
+      loginLoad.style.color = 'var(--sage-dark)';
+    } else {
+      loginLoad.textContent = 'No active users found in the USERS sheet.';
+      loginLoad.style.color = 'var(--rust-dark)';
+    }
   }
 
   loginBtn.addEventListener('click', function(){
@@ -972,18 +996,19 @@
     }
     loginBtn.disabled = true;
     loginBtn.textContent = 'Checking…';
-    backendAuthenticate(username, pin, function(user){
+    var match = state.users.find(function(u){ return u.username === username && u.pin === pin; });
+    setTimeout(function(){
       loginBtn.disabled = false;
       loginBtn.textContent = 'Clock In';
-      if (!user){
+      if (!match){
         loginError.textContent = "That PIN doesn't match this user. Try again.";
         loginError.classList.add('show');
         return;
       }
       loginError.classList.remove('show');
-      state.currentUser = user;
+      state.currentUser = { username: match.username, displayName: match.displayName, role: match.role };
       enterApp();
-    });
+    }, 120);
   });
 
   loginPinInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') loginBtn.click(); });
@@ -994,17 +1019,13 @@
     document.getElementById('userName').textContent = state.currentUser.displayName;
     document.getElementById('userRole').textContent = state.currentUser.role;
     var modeFooter = document.getElementById('modeFooter');
-    if (HAS_BACKEND){
-      modeFooter.textContent = 'Connected — checking which sheet…';
-      callBackend('getBackendInfo').then(function(info){
-        modeFooter.innerHTML = 'Connected to <a href="' + info.spreadsheetUrl + '" target="_blank" rel="noopener">' +
-          escapeHtml(info.spreadsheetName) + '</a> · ' + info.assetRegistryRowCount + ' assets on file. ' +
-          'If this isn\'t the sheet you expect, you\'re on the wrong deployment URL.';
-      }).catch(function(err){
-        modeFooter.textContent = 'Connected, but could not read spreadsheet info: ' + String(err && err.message ? err.message : err);
-      });
+    var counts = state.assets.length + ' assets · ' + state.parts.length + ' parts · ' + state.log.length + ' log entries loaded from the live sheet.';
+    if (state.loadErrors && state.loadErrors.length){
+      modeFooter.innerHTML = '<b style="color:var(--rust-dark);">Some sheets failed to load:</b> ' +
+        escapeHtml(state.loadErrors.join('; ')) + '.<br>The portal is running on whatever loaded successfully.';
     } else {
-      modeFooter.textContent = 'Preview mode — running on sample data, not yet connected to the live sheet.';
+      modeFooter.innerHTML = 'Live read from the published Ngapori_RAMS_v2 Google Sheet — ' + counts + '<br>' +
+        '<span style="opacity:0.8;">Submitted work orders and new assets stay in this browser session (the published CSV is read-only).</span>';
     }
     renderWoHeader();
     renderAll();
@@ -1021,7 +1042,6 @@
   /* =========================================================================
      KPI STRIP
   ========================================================================= */
-
   function computeKpis(){
     var assets = state.assets;
     var operational = assets.filter(function(a){ return a.status === 'Operational'; }).length;
@@ -1070,7 +1090,6 @@
   /* =========================================================================
      ASSET LOOKUP + SELECTION
   ========================================================================= */
-
   var lookupBtn = document.getElementById('lookupBtn');
   var lookupPanel = document.getElementById('assetLookupPanel');
   var lookupList = document.getElementById('assetLookupList');
@@ -1157,14 +1176,13 @@
           statusBadgeHtml(a.status) +
         '</div>' +
         '<div class="meta-row">' +
-          '<div><div class="k">Domain</div><div class="v">' + a.category + '</div></div>' +
+          '<div><div class="k">Domain</div><div class="v">' + (a.category || '—') + '</div></div>' +
           (a.assetType ? '<div><div class="k">Asset Type</div><div class="v">' + a.assetType + '</div></div>' : '') +
-          '<div><div class="k">Location</div><div class="v">' + a.location + '</div></div>' +
+          '<div><div class="k">Location</div><div class="v">' + (a.location || '—') + '</div></div>' +
           '<div><div class="k">Manufacturer</div><div class="v">' + (a.manufacturer || '—') + '</div></div>' +
           '<div><div class="k">Registered</div><div class="v">' + (a.dateCreated || '—') + '</div></div>' +
           '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
           '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
-          (a.identifierNumber ? '<div><div class="k">' + (a.identifierType || 'ID') + '</div><div class="v mono" style="font-size:11.5px;">' + a.identifierNumber + '</div></div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -1172,11 +1190,9 @@
   /* =========================================================================
      QR SCAN
   ========================================================================= */
-
   var scanBtn = document.getElementById('scanBtn');
   var scanModal = document.getElementById('scanModal');
   var scanVideoWrap = document.getElementById('scanVideoWrap');
-  var scanFallback = document.getElementById('scanFallback');
   var scanCancelBtn = document.getElementById('scanCancelBtn');
   var scanStream = null, scanDetectTimer = null;
 
@@ -1194,7 +1210,7 @@
   }
 
   function startScan(){
-    scanVideoWrap.innerHTML = '<div class="scan-fallback" id="scanFallback">Starting camera…</div>';
+    scanVideoWrap.innerHTML = '<div class="scan-fallback">Starting camera…</div>';
     if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       showScanFallback();
       return;
@@ -1252,9 +1268,8 @@
   }
 
   /* =========================================================================
-     REGISTER NEW ASSET
+     REGISTER NEW ASSET  (session-only — published CSV is read-only)
   ========================================================================= */
-
   var registerBtn = document.getElementById('registerBtn');
   var registerModal = document.getElementById('registerModal');
   var regCategory = document.getElementById('regCategory');
@@ -1262,7 +1277,7 @@
   var regIdLabel = document.getElementById('regIdLabel');
   var regIdNumber = document.getElementById('regIdNumber');
   var regError = document.getElementById('regError');
-  var regPhotos = []; // { dataUrl, mimeType, filename }
+  var regPhotos = [];
 
   var regPhotoInput = document.getElementById('regPhotoInput');
   var regAddPhotoBtn = document.getElementById('regAddPhotoBtn');
@@ -1368,6 +1383,35 @@
   }
   regAssetType.addEventListener('change', updateIdentifierLabel);
 
+  function suggestAssetId(assetType){
+    var typeInfo = (state.settings.assetTypes || []).find(function(t){ return t.type === assetType; });
+    var prefix = typeInfo ? typeInfo.prefix : 'AST';
+    var suffixStyle = typeInfo ? typeInfo.suffixStyle : 'numeric';
+    var existingSuffixes = state.assets
+      .filter(function(a){ return a.assetId && a.assetId.toUpperCase().indexOf(prefix.toUpperCase() + '-') === 0; })
+      .map(function(a){ return a.assetId.substring(prefix.length + 1); });
+
+    if (suffixStyle === 'alpha'){
+      var maxLetterCode = 'A'.charCodeAt(0) - 1;
+      existingSuffixes.forEach(function(s){
+        var m = s.match(/^([A-Za-z]+)$/);
+        if (m && m[1].length === 1){
+          var code = m[1].toUpperCase().charCodeAt(0);
+          if (code > maxLetterCode) maxLetterCode = code;
+        }
+      });
+      return prefix + '-' + String.fromCharCode(maxLetterCode + 1);
+    } else {
+      var maxNum = 0;
+      existingSuffixes.forEach(function(s){
+        var n = parseInt(s, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      });
+      var next = maxNum + 1;
+      return prefix + '-' + (next < 10 ? '0' + next : next);
+    }
+  }
+
   document.getElementById('regAutoIdBtn').addEventListener('click', function(){
     var btn = document.getElementById('regAutoIdBtn');
     var assetType = regAssetType.value;
@@ -1378,24 +1422,20 @@
     }
     btn.disabled = true;
     btn.textContent = '…';
-    backendSuggestAssetId(assetType, function(suggestedId){
+    setTimeout(function(){
       btn.disabled = false;
       btn.textContent = 'Auto-Generate';
-      document.getElementById('regAssetId').value = suggestedId;
+      document.getElementById('regAssetId').value = suggestAssetId(assetType);
       regError.classList.remove('show');
-    });
+    }, 120);
   });
 
   registerBtn.addEventListener('click', function(){
     clearRegisterForm();
     registerModal.classList.add('show');
   });
-  document.getElementById('regCancelBtn').addEventListener('click', function(){
-    registerModal.classList.remove('show');
-  });
-  document.getElementById('regCloseX').addEventListener('click', function(){
-    registerModal.classList.remove('show');
-  });
+  document.getElementById('regCancelBtn').addEventListener('click', function(){ registerModal.classList.remove('show'); });
+  document.getElementById('regCloseX').addEventListener('click', function(){ registerModal.classList.remove('show'); });
 
   function clearRegisterForm(){
     document.getElementById('regAssetId').value = '';
@@ -1434,47 +1474,37 @@
       regError.classList.add('show');
       return;
     }
-    var payload = {
+    var exists = state.assets.some(function(a){ return a.assetId.toLowerCase() === assetId.toLowerCase(); });
+    if (exists){
+      regError.textContent = 'Asset ID "' + assetId + '" already exists.';
+      regError.classList.add('show');
+      return;
+    }
+
+    state.assets.push({
       assetId: assetId,
       assetName: assetName,
       category: regCategory.value,
       assetType: regAssetType.value,
       manufacturer: document.getElementById('regManufacturer').value.trim(),
       location: document.getElementById('regLocation').value.trim(),
-      identifierType: regIdLabel.textContent,
-      identifierNumber: regIdNumber.value.trim(),
-      serviceIntervalDays: document.getElementById('regServiceInterval').value,
-      lastServiced: document.getElementById('regLastServiced').value,
-      purchasePrice: document.getElementById('regPurchasePrice').value,
-      status: regStatus.value,
-      photos: regPhotos.map(function(p){ return { filename: p.filename, mimeType: p.mimeType, base64: p.dataUrl.split(',')[1] }; })
-    };
-
-    var btn = document.getElementById('regSubmitBtn');
-    btn.disabled = true;
-    btn.textContent = 'Adding…';
-
-    backendRegisterAsset(payload, function(result){
-      btn.disabled = false;
-      btn.textContent = 'Add Asset';
-      registerModal.classList.remove('show');
-      state.assets = result.data.assets;
-      state.parts = result.data.parts;
-      renderKpis();
-      selectAsset(result.assetId);
-      showToast(result.assetId, 'Added to ASSET_REGISTRY on ' + document.getElementById('regDateCreated').textContent + '.');
-    }, function(err){
-      btn.disabled = false;
-      btn.textContent = 'Add Asset';
-      regError.textContent = String(err && err.message ? err.message : err);
-      regError.classList.add('show');
+      status: regStatus.value || 'Operational',
+      serviceIntervalDays: Number(document.getElementById('regServiceInterval').value) || 90,
+      lastServiced: document.getElementById('regLastServiced').value || '',
+      nextServiceDue: '',
+      purchasePrice: Number(document.getElementById('regPurchasePrice').value) || 0,
+      dateCreated: new Date().toISOString().slice(0, 10)
     });
+
+    registerModal.classList.remove('show');
+    renderKpis();
+    selectAsset(assetId);
+    showToast(assetId, 'Added to this session — not yet written to the live sheet (read-only CSV).');
   });
 
   /* =========================================================================
      WORK ORDER FORM
   ========================================================================= */
-
   function todayIso(){ return new Date().toISOString().slice(0, 10); }
 
   function renderWoHeader(){
@@ -1510,10 +1540,10 @@
       opt.textContent = level;
       sel.appendChild(opt);
     });
-    sel.addEventListener('change', function(){
+    sel.onchange = function(){
       state.priority = sel.value || null;
       updateSubmitState();
-    });
+    };
   }
 
   function priorityTagHtml(priority){
@@ -1530,13 +1560,13 @@
       opt.textContent = wt;
       sel.appendChild(opt);
     });
-    sel.addEventListener('change', function(){
+    sel.onchange = function(){
       state.workType = sel.value || null;
       var isDamage = sel.value === 'Damage / Repair Needed';
       document.getElementById('damageFlagRow').style.display = isDamage ? 'flex' : 'none';
       if (!isDamage) document.getElementById('markOutOfOrder').checked = false;
       updateSubmitState();
-    });
+    };
   }
 
   function renderStatusSelect(){
@@ -1548,7 +1578,7 @@
       opt.textContent = s;
       sel.appendChild(opt);
     });
-    sel.addEventListener('change', function(){
+    sel.onchange = function(){
       state.workStatus = sel.value || null;
       var completedDateInput = document.getElementById('completedDateInput');
       if (sel.value === 'Completed'){
@@ -1557,7 +1587,7 @@
         completedDateInput.value = '';
       }
       updateSubmitState();
-    });
+    };
   }
 
   var vendorNameInput = document.getElementById('vendorNameInput');
@@ -1665,6 +1695,22 @@
 
   document.getElementById('submitBtn').addEventListener('click', submitWorkOrder);
 
+  var localRecentLog = [];
+  var logSeq = 0;
+
+  function nextLogId(){
+    var maxNum = 1000;
+    state.log.forEach(function(l){
+      var m = /^LOG-(\d+)$/.exec(l.logId || '');
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    });
+    localRecentLog.forEach(function(l){
+      var m = /^LOG-(\d+)$/.exec(l.logId || '');
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    });
+    return 'LOG-' + (maxNum + 1 + logSeq++);
+  }
+
   function submitWorkOrder(){
     var btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -1674,7 +1720,12 @@
       return { name: name, quantity: state.selectedParts[name] };
     });
 
+    var logId = nextLogId();
+    var ts = new Date().toISOString();
+
     var entry = {
+      logId: logId,
+      timestamp: ts,
       assetId: state.selectedAsset.assetId,
       workType: state.workType,
       description: descriptionInput.value.trim(),
@@ -1684,53 +1735,45 @@
       role: state.currentUser.role,
       priority: state.priority,
       cost: document.getElementById('costInput').value || 0,
-      hours: document.getElementById('hoursInput').value || 0,
-      completedDate: document.getElementById('completedDateInput').value || '',
       status: state.workStatus,
-      parts: partsPayload,
       materialsNote: document.getElementById('materialsNoteInput').value.trim(),
-      markOutOfOrder: document.getElementById('markOutOfOrder').checked,
-      serviceLocation: state.servicedBy,
-      vendorName: state.servicedBy === 'Vendor / Outside Shop' ? vendorNameInput.value.trim() : '',
-      managerSignoff: document.getElementById('managerSignoffInput').value.trim()
+      markOutOfOrder: document.getElementById('markOutOfOrder').checked
     };
 
-    backendSubmitLogEntry(entry, function(result){
-      btn.textContent = 'Submit Work Order';
-      if (!result){ btn.disabled = false; return; }
-      state.assets = result.data.assets;
-      state.parts = result.data.parts;
-      var reselect = state.assets.find(function(a){ return a.assetId === entry.assetId; });
-      state.selectedAsset = reselect || null;
-
-      showToast(result.logId, 'Work order logged for ' + entry.assetId + '.');
-      prependLocalLogEntry(result.logId, result.timestamp, entry);
-      renderKpis();
-      renderAssetPlate();
-      resetForm(true);
+    /* session-only mutations */
+    (partsPayload).forEach(function(p){
+      var part = state.parts.find(function(x){ return x.name === p.name; });
+      if (part){
+        part.onHand = Math.max(0, part.onHand - (Number(p.quantity) || 0));
+        part.status = (part.onHand <= part.minimum * state.settings.lowStockMultiplier) ? 'LOW' : 'OK';
+      }
     });
-  }
+    if (entry.markOutOfOrder){
+      var asset = state.assets.find(function(a){ return a.assetId === entry.assetId; });
+      if (asset) asset.status = 'Out of Order';
+    }
 
-  var localRecentLog = [];
-  function prependLocalLogEntry(logId, timestamp, entry){
-    localRecentLog.unshift({
-      logId: logId, timestamp: timestamp, assetId: entry.assetId, workType: entry.workType,
-      description: entry.description, reportedBy: entry.reportedBy, assignedTo: entry.assignedTo,
-      priority: entry.priority, cost: entry.cost, status: entry.status, materialsNote: entry.materialsNote
-    });
+    localRecentLog.unshift(entry);
+    showToast(logId, 'Work order logged for ' + entry.assetId + ' (session-only).');
+    renderKpis();
+    renderAssetPlate();
     renderRecentLog();
+    resetForm(true);
   }
 
   function renderRecentLog(){
     var list = document.getElementById('recentLog');
-    var seed = [{ logId: 'LOG-1001', timestamp: '2026-06-02T08:15:00', assetId: 'TRAC-01', workType: 'Inspection', description: 'Routine 90-day check, oil topped off.', reportedBy: 'J. Doe', priority: 'Low', cost: 0, status: 'Completed' }];
-    var items = localRecentLog.concat(seed).slice(0, 6);
+    var items = localRecentLog.concat(state.log).slice(0, 8);
     list.innerHTML = '';
+    if (!items.length){
+      list.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft);">No maintenance log entries loaded.</div>';
+      return;
+    }
     items.forEach(function(entry){
       var el = document.createElement('div');
       el.className = 'log-item';
       var when = new Date(entry.timestamp);
-      var whenStr = isNaN(when.getTime()) ? entry.timestamp : when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      var whenStr = isNaN(when.getTime()) ? (entry.timestamp || '') : when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
       el.innerHTML =
         '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
         '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
@@ -1742,7 +1785,7 @@
 
   function escapeHtml(s){
     var div = document.createElement('div');
-    div.textContent = s;
+    div.textContent = s == null ? '' : s;
     return div.innerHTML;
   }
 
@@ -1775,7 +1818,6 @@
   /* =========================================================================
      TOAST
   ========================================================================= */
-
   var toastTimer = null;
   function showToast(stamp, msg){
     var toast = document.getElementById('toast');
@@ -1789,7 +1831,6 @@
   /* =========================================================================
      BOOT
   ========================================================================= */
-
   function renderAll(){
     renderKpis();
     renderWorkTypeSelect();
@@ -1805,11 +1846,14 @@
     updateSubmitState();
   }
 
-  backendGetInitialData(function(data){
+  loadAllData(function(data){
     state.settings = data.settings;
     state.users = data.users;
     state.assets = data.assets;
     state.parts = data.parts;
+    state.log = data.log;
+    state.capex = data.capex;
+    state.loadErrors = data.loadErrors;
     populateLoginUsers();
   });
 
