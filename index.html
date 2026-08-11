@@ -522,6 +522,22 @@
             <select id="workTypeSelect"></select>
           </div>
 
+          <div class="field">
+            <label>Material Needed? <span class="required-mark">*</span></label>
+            <div class="status-toggle" id="materialNeededToggle"></div>
+          </div>
+
+          <div id="materialDetailsBlock" style="display:none;">
+            <div class="field">
+              <label for="materialUsedInput">What Material <span class="required-mark">*</span></label>
+              <input type="text" id="materialUsedInput" placeholder="e.g. 2x pressure-treated 4x4 posts, box of hex screws, roll of hardware cloth">
+            </div>
+            <div class="field">
+              <label for="materialCostInput">Material Cost (USD)</label>
+              <input type="number" id="materialCostInput" min="0" step="0.01" value="0.00">
+            </div>
+          </div>
+
         </div>
 
         <div class="wo-divider"></div>
@@ -840,11 +856,19 @@
         timestamp: r.Timestamp || '',
         assetId: r.Asset_ID || '',
         workType: r.Work_Type || '',
+        priority: r.Priority || '',
         description: r.Description || '',
         reportedBy: r.Reported_By_User || '',
+        assignedTo: r.Assigned_To || '',
         role: r.User_Role || '',
+        workPerformed: r.Work_Performed || '',
+        hours: num(r.Hours, 0),
+        completedDate: dateOnly(r.Completed_Date),
         cost: num(r.Cost_USD, 0),
         status: r.Status || '',
+        materialNeeded: /^(yes|true|1)$/i.test(r.Material_Needed || ''),
+        materialUsed: r.Material_Used || '',
+        materialCost: num(r.Material_Cost_USD, 0),
         closedBy: r.Closed_By_Manager || ''
       };
     }).filter(function(l){ return l.logId; });
@@ -964,6 +988,7 @@
     workType: null,
     workStatus: null,
     priority: null,
+    materialNeeded: null,
     servicedBy: 'Ranch Crew'
   };
 
@@ -1194,7 +1219,11 @@
           '<div><div class="k">Last Serviced</div><div class="v">' + (a.lastServiced || '—') + '</div></div>' +
           '<div><div class="k">Next Service Due</div><div class="v">' + (a.nextServiceDue || '—') + '</div></div>' +
         '</div>' +
+        '<button type="button" id="assetPlateRemoveBtn" class="btn btn-secondary" style="width:auto; padding:6px 12px; font-size:12px; margin-top:12px;">Remove selected asset</button>' +
       '</div>';
+    document.getElementById('assetPlateRemoveBtn').addEventListener('click', function(){
+      selectAsset(null);
+    });
   }
 
   /* =========================================================================
@@ -1575,8 +1604,9 @@
   }
 
   function priorityTagHtml(priority){
-    var cls = (priority || 'Medium').toLowerCase();
-    return '<span class="priority-tag ' + cls + '">' + (priority || 'Medium') + '</span>';
+    if (!priority) return '';
+    var cls = priority.toLowerCase();
+    return '<span class="priority-tag ' + cls + '">' + priority + '</span>';
   }
 
   function renderWorkTypeSelect(){
@@ -1647,6 +1677,39 @@
   }
   vendorNameInput.addEventListener('input', updateSubmitState);
 
+  var materialUsedInput = document.getElementById('materialUsedInput');
+  var materialCostInput = document.getElementById('materialCostInput');
+  materialUsedInput.addEventListener('input', updateSubmitState);
+
+  function renderMaterialNeededToggle(){
+    var wrap = document.getElementById('materialNeededToggle');
+    wrap.innerHTML = '';
+    ['No', 'Yes'].forEach(function(s){
+      var chip = document.createElement('div');
+      chip.className = 'chip-option';
+      chip.textContent = s;
+      chip.tabIndex = 0;
+      chip.addEventListener('click', function(){ selectMaterialNeeded(s); });
+      chip.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMaterialNeeded(s); } });
+      wrap.appendChild(chip);
+    });
+    selectMaterialNeeded('No');
+  }
+
+  function selectMaterialNeeded(s){
+    state.materialNeeded = s;
+    Array.from(document.getElementById('materialNeededToggle').children).forEach(function(chip){
+      chip.classList.toggle('selected', chip.textContent === s);
+    });
+    var isYes = s === 'Yes';
+    document.getElementById('materialDetailsBlock').style.display = isYes ? 'block' : 'none';
+    if (!isYes){
+      materialUsedInput.value = '';
+      materialCostInput.value = '0.00';
+    }
+    updateSubmitState();
+  }
+
 
 
   var descriptionInput = document.getElementById('descriptionInput');
@@ -1654,8 +1717,9 @@
 
   function updateSubmitState(){
     var vendorOk = state.servicedBy !== 'Vendor / Outside Shop' || vendorNameInput.value.trim().length > 0;
-    var ok = state.workType && state.workStatus && state.priority &&
-      descriptionInput.value.trim().length > 0 && vendorOk;
+    var materialOk = state.materialNeeded !== 'Yes' || materialUsedInput.value.trim().length > 0;
+    var ok = state.workType && state.workStatus && state.priority && state.materialNeeded &&
+      descriptionInput.value.trim().length > 0 && vendorOk && materialOk;
     document.getElementById('submitBtn').disabled = !ok;
   }
 
@@ -1685,11 +1749,19 @@
     var entry = {
       assetId: state.selectedAsset ? state.selectedAsset.assetId : '',
       workType: state.workType,
+      priority: state.priority,
       description: descriptionInput.value.trim(),
       reportedBy: state.currentUser.displayName,
+      assignedTo: document.getElementById('woAssignedTo').value.trim() || state.currentUser.displayName,
       role: state.currentUser.role,
+      workPerformed: document.getElementById('workPerformedInput').value.trim(),
+      hours: document.getElementById('hoursInput').value || 0,
+      completedDate: document.getElementById('completedDateInput').value || '',
       cost: document.getElementById('costInput').value || 0,
       status: state.workStatus,
+      materialNeeded: state.materialNeeded === 'Yes',
+      materialUsed: state.materialNeeded === 'Yes' ? materialUsedInput.value.trim() : '',
+      materialCost: state.materialNeeded === 'Yes' ? (materialCostInput.value || 0) : 0,
       managerSignoff: document.getElementById('managerSignoffInput').value.trim(),
       markOutOfOrder: !!(state.selectedAsset && document.getElementById('markOutOfOrder').checked)
     };
@@ -1707,7 +1779,6 @@
       }
       entry.logId = res.logId;
       entry.timestamp = res.timestamp;
-      entry.priority = state.priority;
       if (entry.markOutOfOrder){
         var asset = state.assets.find(function(a){ return a.assetId === entry.assetId; });
         if (asset) asset.status = 'Out of Order';
@@ -1737,6 +1808,7 @@
       el.innerHTML =
         '<div class="row1"><span class="lid">' + entry.logId + '</span>' + priorityTagHtml(entry.priority) + '<span class="wtype">' + entry.workType + '</span></div>' +
         '<div class="desc">' + escapeHtml(entry.description) + '</div>' +
+        (entry.materialNeeded ? '<div class="desc" style="font-style:italic; color:var(--ink-soft);">Material: ' + escapeHtml(entry.materialUsed || '—') + (entry.materialCost ? ' ($' + Number(entry.materialCost).toFixed(2) + ')' : '') + '</div>' : '') +
         '<div class="row2"><span>' + (entry.assetId || 'General maintenance') + ' · ' + entry.reportedBy + (entry.assignedTo && entry.assignedTo !== entry.reportedBy ? ' → ' + entry.assignedTo : '') + '</span><span>' + whenStr + '</span></div>';
       list.appendChild(el);
     });
@@ -1768,6 +1840,7 @@
     document.getElementById('prioritySelect').value = '';
     document.getElementById('statusSelect').value = '';
     selectServicedBy('Ranch Crew');
+    selectMaterialNeeded('No');
     updateSubmitState();
   }
 
@@ -1793,6 +1866,7 @@
     renderPrioritySelect();
     renderStatusSelect();
     renderServicedByToggle();
+    renderMaterialNeededToggle();
     renderAssetPlate();
     renderWoAssetLine();
     renderRecentLog();
